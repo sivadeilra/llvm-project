@@ -342,6 +342,12 @@ def PresplitCoroutine : EnumAttr<"presplitcoroutine", [FnAttr]>;
 /// The coroutine would only be destroyed when it is complete.
 def CoroDestroyOnlyWhenComplete : EnumAttr<"coro_only_destroy_when_complete", [FnAttr]>;
 
+/// Function is marked for Windows Hot Patching
+def MarkedForWindowsHotPatching : EnumAttr<"marked_for_windows_hot_patching", [FnAttr]>;
+
+/// Global variable should not be accessed through a "__ref_" global variable in a hot patching function
+def AllowDirectAccessInHotPatchFunction : EnumAttr<"allow_direct_access_in_hot_patch_function", []>;
+
 /// Target-independent string attributes.
 def LessPreciseFPMAD : StrBoolAttr<"less-precise-fpmad">;
 def NoInfsFPMath : StrBoolAttr<"no-infs-fp-math">;

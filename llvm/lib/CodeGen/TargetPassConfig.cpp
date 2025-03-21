@@ -890,6 +890,9 @@ void TargetPassConfig::addIRPasses() {
   // Convert conditional moves to conditional jumps when profitable.
   if (getOptLevel() != CodeGenOptLevel::None && !DisableSelectOptimize)
     addPass(createSelectOptimizePass());
+
+  if (TM->getTargetTriple().isOSBinFormatCOFF())
+    addPass(createWindowsHotPatch());
 }
 
 /// Turn exception handling constructs into something the code generators can

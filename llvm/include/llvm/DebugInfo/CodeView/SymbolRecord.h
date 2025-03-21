@@ -176,6 +176,19 @@ public:
   uint32_t RecordOffset = 0;
 };
 
+class HotPatchFuncSym : public SymbolRecord {
+public:
+  explicit HotPatchFuncSym(SymbolRecordKind Kind) : SymbolRecord(Kind) {}
+  HotPatchFuncSym(uint32_t RecordOffset)
+      : SymbolRecord(SymbolRecordKind::HotPatchFuncSym),
+        RecordOffset(RecordOffset) {}
+
+  TypeIndex Function;
+  StringRef Name;
+
+  uint32_t RecordOffset = 0;
+};
+
 struct DecodedAnnotation {
   StringRef Name;
   ArrayRef<uint8_t> Bytes;
