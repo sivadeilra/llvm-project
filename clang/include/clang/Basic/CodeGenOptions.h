@@ -501,6 +501,13 @@ public:
 
   /// A list of functions that are replacable by the loader.
   std::vector<std::string> LoaderReplaceableFunctionNames;
+  /// The name of a file that contains functions which will be compiled for
+  /// hotpatching. See -fms-hot-patch-functions-file.
+  std::string MSHotPatchFunctionsFile;
+
+  /// A list of functions which will be compiled for hotpatching.
+  /// See -fms-hot-patch-functions-list.
+  std::vector<std::string> MSHotPatchFunctionsList;
 
 public:
   // Define accessors/mutators for code generation options of enumeration type.
