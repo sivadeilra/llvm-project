@@ -36421,6 +36421,35 @@ X86TargetLowering::EmitSjLjDispatchBlock(MachineInstr &MI,
       BuildMI(DispContBB, MIMD, TII->get(X86::JMP64r)).addReg(TReg);
       break;
     }
+#if 0
+    case MachineJumpTableInfo::EK_CoffImageBase: {
+      Register ImageBaseReg = MRI->createVirtualRegister(&X86::GR64RegClass); // __ImageBase (COFF-specific)
+      Register OReg = MRI->createVirtualRegister(&X86::GR32RegClass); // offset (uint32)
+      Register OReg64 = MRI->createVirtualRegister(&X86::GR64RegClass); // offset (uint64)
+
+      // movl (BReg,IReg64,4), OReg
+      BuildMI(DispContBB, MIMD, TII->get(X86::MOV32rm), OReg)
+          .addReg(BReg)
+          .addImm(4)
+          .addReg(IReg64)
+          .addImm(0)
+          .addReg(0);
+      // movsx OReg64, OReg
+      BuildMI(DispContBB, MIMD, TII->get(X86::MOVSX64rr32), OReg64)
+          .addReg(OReg);
+
+      // leaq (__ImageBase,OReg64), ImageBaseReg
+      BuildMI(DispContBB, MIMD, TII->get(X86::LEA64r), ImageBaseReg)
+        .addReg(X86::RIP)
+        .addImm(1) // scale
+        .addReg(1) // index register
+        .addExternalSymbol("__ImageBase", X86II::MO_COFF_PIC_IMAGE_BASE_REL)
+        .addReg(0); // displacement
+
+      BuildMI(DispContBB, MIMD, TII->get(X86::JMP64r)).addReg(ImageBaseReg);
+      break;
+    }
+#endif
     default:
       llvm_unreachable("Unexpected jump table encoding");
     }

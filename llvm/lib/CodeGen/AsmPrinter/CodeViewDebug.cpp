@@ -3588,6 +3588,11 @@ void CodeViewDebug::collectDebugInfoForJumpTables(const MachineFunction *MF,
           std::tie(Base, BaseOffset, Branch, EntrySize) =
               Asm->getCodeViewJumpTableInfo(JumpTableIndex, &BranchMI, Branch);
           break;
+        case MachineJumpTableInfo::EK_CoffImageBase:
+            // TODO: OBVIOUSLY FIX THIS
+            EntrySize = JumpTableEntrySize::UInt32;
+            Base = nullptr; // Asm->getSymbol("__ImageBase");
+          break;
         }
 
         CurFn->JumpTables.push_back(

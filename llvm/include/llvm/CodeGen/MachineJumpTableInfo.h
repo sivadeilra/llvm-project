@@ -79,7 +79,11 @@ public:
 
     /// EK_Custom32 - Each entry is a 32-bit value that is custom lowered by the
     /// TargetLowering::LowerCustomJumpTableEntry hook.
-    EK_Custom32
+    EK_Custom32,
+
+    // EK_CoffImageBase - In PE/COFF images, each entry is a 32-bit unsigned value
+    // that is added to __ImageBase, which is the base of the linked image.
+    EK_CoffImageBase,
   };
 
 private:

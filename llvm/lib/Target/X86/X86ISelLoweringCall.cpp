@@ -422,6 +422,10 @@ unsigned X86TargetLowering::getJumpTableEncoding() const {
       !Subtarget.isTargetCOFF())
     return MachineJumpTableInfo::EK_LabelDifference64;
 
+  // TODO: only do this for amd64, not x86
+  if (isPositionIndependent() && Subtarget.isTargetCOFF())
+    return MachineJumpTableInfo::EK_CoffImageBase;
+
   // Otherwise, use the normal jump table encoding heuristics.
   return TargetLowering::getJumpTableEncoding();
 }
@@ -477,7 +481,11 @@ SDValue X86TargetLowering::getPICJumpTableRelocBase(SDValue Table,
     // same as a Register.
     return DAG.getNode(X86ISD::GlobalBaseReg, SDLoc(),
                        getPointerTy(DAG.getDataLayout()));
-  return Table;
+  else {
+    return DAG.getExternalSymbol("__ImageBase", getPointerTy(DAG.getDataLayout()));
+    // getCoffImageBase(getPointerTy(DAG.getDataLayout()));
+  }
+  // return Table;
 }
 
 /// This returns the relocation base for the given PIC jumptable,

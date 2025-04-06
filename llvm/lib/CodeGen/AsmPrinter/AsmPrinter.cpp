@@ -2828,6 +2828,15 @@ void AsmPrinter::emitJumpTableEntry(const MachineJumpTableInfo *MJTI,
     Value = MCBinaryExpr::createSub(Value, Base, OutContext);
     break;
   }
+
+  case MachineJumpTableInfo::EK_CoffImageBase: {
+    // This generates a 32-bit offset, which is MBB's address minus __ImageBase.
+    Value = MCSymbolRefExpr::create(
+      MBB->getSymbol(),
+      MCSymbolRefExpr::VK_COFF_IMGREL32,
+      OutContext);
+    break;
+  }
   }
 
   assert(Value && "Unknown entry kind!");

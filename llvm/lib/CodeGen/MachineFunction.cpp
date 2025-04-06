@@ -1272,6 +1272,8 @@ unsigned MachineJumpTableInfo::getEntrySize(const DataLayout &TD) const {
     return 4;
   case MachineJumpTableInfo::EK_Inline:
     return 0;
+  case MachineJumpTableInfo::EK_CoffImageBase:
+    return 4;
   }
   llvm_unreachable("Unknown jump table encoding!");
 }
@@ -1289,6 +1291,7 @@ unsigned MachineJumpTableInfo::getEntryAlignment(const DataLayout &TD) const {
     return TD.getABIIntegerTypeAlignment(64).value();
   case MachineJumpTableInfo::EK_GPRel32BlockAddress:
   case MachineJumpTableInfo::EK_LabelDifference32:
+  case MachineJumpTableInfo::EK_CoffImageBase:
   case MachineJumpTableInfo::EK_Custom32:
     return TD.getABIIntegerTypeAlignment(32).value();
   case MachineJumpTableInfo::EK_Inline:
