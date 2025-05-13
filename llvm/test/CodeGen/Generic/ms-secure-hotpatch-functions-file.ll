@@ -3,7 +3,7 @@
 ; RUN: echo this_gets_hotpatched > %t.patch-functions.txt
 ; RUN: llc -mtriple=x86_64-windows --ms-secure-hotpatch-functions-file=%t.patch-functions.txt < %s | FileCheck %s
 
-source_filename = ".\\ms-hotpatch-functions-file.ll"
+source_filename = ".\\ms-secure-hotpatch-functions-file.ll"
 target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-pc-windows-msvc19.36.32537"
 

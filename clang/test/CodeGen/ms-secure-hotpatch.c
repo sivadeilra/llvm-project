@@ -1,6 +1,7 @@
 // This verifies that hotpatch function attributes are correctly propagated when compiling directly to OBJ.
 //
-// RUN: %clang_cl -c --target=x86_64-windows-msvc -O2 /Z7 -fms-hotpatch-functions-file=%S/ms-hotpatch-functions.txt /Fo%t.obj %s
+// RUN: echo this_gets_hotpatched > %t.patch-functions.txt
+// RUN: %clang_cl -c --target=x86_64-windows-msvc -O2 /Z7 -fms-hotpatch-functions-file=%t.patch-functions.txt /Fo%t.obj %s
 // RUN: llvm-readobj --codeview %t.obj | FileCheck %s
 
 void this_might_have_side_effects();
