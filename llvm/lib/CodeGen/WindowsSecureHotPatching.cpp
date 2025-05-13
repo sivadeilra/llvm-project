@@ -6,7 +6,50 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Marks functions with the `marked_for_windows_hot_patching` attribute.
+// Provides support for the Windows "Secure Hot-Patching" feature.
+//
+// Windows contains technology, called "Secure Hot-Patching" (SHP), for securely applying
+// hot-patches to a running system. Hot-patches may be applied to the kernel, kernel-mode
+// components, device drivers, user-mode system services, etc.
+//
+// SHP relies on integration between many tools, including compiler, linker, hot-patch
+// generation tools, and the Windows kernel. This file implements that part of the workflow
+// needed in compilers / code generators.
+//
+// SHP is not intended for productivity scenarios, such as Edit-and-Continue or interactive
+// development. SHP is intended to minimize downtime during installation of Windows OS patches.
+//
+// In order to work with SHP, LLVM must do all of the following:
+//
+// * On some architectures (X86, AMD64), the function prolog must begin with hot-patchable
+//   instructions. This is handled by the MSVC `/hotpatch` option and the equivalent `-fms-hotpatch`
+//   function. This is necessary because we generally cannot anticipate which functions will need
+//   to be patched in the future. This option ensures that a function can be hot-patched in the
+//   future, but does not actually generate any hot-patch for it.
+//
+// * For a selected set of functions that are being hot-patched (which are identified using
+//   command-line options), LLVM must generate the `S_HOTPATCHFUNC` CodeView record (symbol).
+//   This record indicates that a function was compiled with hot-patching enabled.
+//
+//   This implementation uses the `MarkedForWindowsHotPatching` attribute to annotate those
+//   functions that were marked for hot-patching by command-line parameters. The attribute
+//   may be specified by a language front-end by setting an attribute when a function is created
+//   in LLVM IR, or it may be set by passing LLVM arguments.
+//
+// * For those functions that are hot-patched, LLVM must rewrite references to global variables
+//   so that they are indirected through a `__ref_*` pointer variable.  For each global variable,
+//   that is accessed by a hot-patched function, e.g. `FOO`, a `__ref_FOO` global pointer variable
+//   is created and all references to the original `FOO` are rewritten as dereferences of the
+//   `__ref_FOO` pointer.
+//
+//   Some globals do not need `__ref_*` indirection. The pointer indirection behavior can be
+//   disabled for these globals by marking them with the `AllowDirectAccessInHotPatchFunction`.
+//
+// References
+//
+// * "Hotpatching on Windows": https://techcommunity.microsoft.com/blog/windowsosplatform/hotpatching-on-windows/2959541
+// * "Hotpatch for Windows client now available": https://techcommunity.microsoft.com/blog/windows-itpro-blog/hotpatch-for-windows-client-now-available/4399808
+// * "Get hotpatching for Windows Server": https://www.microsoft.com/en-us/windows-server/blog/2025/04/24/tired-of-all-the-restarts-get-hotpatching-for-windows-server/?msockid=19a6f8f09bd160ac0b18ed449afc614b
 //
 //===----------------------------------------------------------------------===//
 
@@ -30,20 +73,19 @@ using namespace llvm;
 #define DEBUG_TYPE "windows-hot-patch"
 
 // A file containing list of mangled function names to mark for hot patching.
-static cl::opt<std::string> LLVMMSHotPatchFunctionsFile(
-    "ms-hotpatch-functions-file", cl::value_desc("filename"),
-    cl::desc("A file containing list of mangled function names to mark for hot "
-             "patching"));
+static cl::opt<std::string> LLVMMSSecureHotPatchFunctionsFile(
+    "ms-secure-hotpatch-functions-file", cl::value_desc("filename"),
+    cl::desc("A file containing list of mangled function names to mark for Windows Secure Hot-Patching"));
 
 // A list of mangled function names to mark for hot patching.
-static cl::list<std::string> LLVMMSHotPatchFunctionsList(
-    "ms-hotpatch-functions-list", cl::value_desc("list"),
-    cl::desc("A list of mangled function names to mark for hot patching"),
+static cl::list<std::string> LLVMMSSecureHotPatchFunctionsList(
+    "ms-secure-hotpatch-functions-list", cl::value_desc("list"),
+    cl::desc("A list of mangled function names to mark for Windows Secure Hot-Patching"),
     cl::CommaSeparated);
 
 namespace {
 
-class WindowsHotPatch : public ModulePass {
+class WindowsSecureHotPatching : public ModulePass {
   struct GlobalVariableUse {
     GlobalVariable *GV;
     Instruction *User;
@@ -53,8 +95,8 @@ class WindowsHotPatch : public ModulePass {
 public:
   static char ID;
 
-  WindowsHotPatch() : ModulePass(ID) {
-    initializeWindowsHotPatchPass(*PassRegistry::getPassRegistry());
+  WindowsSecureHotPatching() : ModulePass(ID) {
+    initializeWindowsSecureHotPatchingPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
@@ -75,64 +117,58 @@ private:
 
 } // end anonymous namespace
 
-char WindowsHotPatch::ID = 0;
+char WindowsSecureHotPatching::ID = 0;
 
-INITIALIZE_PASS(WindowsHotPatch, "windows-hot-patch",
+INITIALIZE_PASS(WindowsSecureHotPatching, "windows-secure-hot-patch",
                 "Mark functions for Windows hot patch support", false, false)
-ModulePass *llvm::createWindowsHotPatch() { return new WindowsHotPatch(); }
+ModulePass *llvm::createWindowsSecureHotPatching() { return new WindowsSecureHotPatching(); }
 
 // Find functions marked with Attribute::MarkedForWindowsHotPatching and modify
 // their code (if necessary) to account for accesses to global variables.
-bool WindowsHotPatch::runOnModule(Module &M) {
+bool WindowsSecureHotPatching::runOnModule(Module &M) {
   // The front end may have already marked functions for hot-patching. However,
   // we also allow marking functions by passing -ms-hotpatch-functions-file or
   // -ms-hotpatch-functions-list directly to LLVM. This allows hot-patching to
   // work with languages that have not yet updated their front-ends.
-  if (!LLVMMSHotPatchFunctionsFile.empty() ||
-      !LLVMMSHotPatchFunctionsList.empty()) {
+  if (!LLVMMSSecureHotPatchFunctionsFile.empty() ||
+      !LLVMMSSecureHotPatchFunctionsList.empty()) {
     std::vector<std::string> HotPatchFunctionsList;
 
-    if (!LLVMMSHotPatchFunctionsFile.empty()) {
-      auto BufOrErr = llvm::MemoryBuffer::getFile(LLVMMSHotPatchFunctionsFile);
+    if (!LLVMMSSecureHotPatchFunctionsFile.empty()) {
+      auto BufOrErr = llvm::MemoryBuffer::getFile(LLVMMSSecureHotPatchFunctionsFile);
       if (BufOrErr) {
         const llvm::MemoryBuffer &FileBuffer = **BufOrErr;
         for (llvm::line_iterator I(FileBuffer.getMemBufferRef(), true), E;
-             I != E; ++I) {
+             I != E; ++I)
           HotPatchFunctionsList.push_back(std::string{*I});
-        }
       } else {
         M.getContext().diagnose(llvm::DiagnosticInfoGeneric{
             llvm::Twine("failed to open hotpatch functions file "
                         "(--ms-hotpatch-functions-file): ") +
-            LLVMMSHotPatchFunctionsFile + llvm::Twine(" : ") +
+            LLVMMSSecureHotPatchFunctionsFile + llvm::Twine(" : ") +
             BufOrErr.getError().message()});
       }
     }
 
-    if (!LLVMMSHotPatchFunctionsList.empty()) {
-      for (const auto &FuncName : LLVMMSHotPatchFunctionsList) {
+    if (!LLVMMSSecureHotPatchFunctionsList.empty())
+      for (const auto &FuncName : LLVMMSSecureHotPatchFunctionsList)
         HotPatchFunctionsList.push_back(FuncName);
-      }
-    }
 
     // Build a set for quick lookups. This points into HotPatchFunctionsList, so
     // HotPatchFunctionsList must live longer than HotPatchFunctionsSet.
     llvm::SmallSet<llvm::StringRef, 16> HotPatchFunctionsSet;
-    for (const auto &FuncName : HotPatchFunctionsList) {
+    for (const auto &FuncName : HotPatchFunctionsList)
       HotPatchFunctionsSet.insert(llvm::StringRef{FuncName});
-    }
 
     // Iterate through all of the functions and check whether they need to be
     // marked for hotpatching using the list provided directly to LLVM.
     for (auto &F : M.functions()) {
       // Ignore declarations that are not definitions.
-      if (F.isDeclarationForLinker()) {
+      if (F.isDeclarationForLinker())
         continue;
-      }
 
-      if (HotPatchFunctionsSet.contains(F.getName())) {
+      if (HotPatchFunctionsSet.contains(F.getName()))
         F.addFnAttr(Attribute::MarkedForWindowsHotPatching);
-      }
     }
   }
 
@@ -140,9 +176,8 @@ bool WindowsHotPatch::runOnModule(Module &M) {
   bool MadeChanges = false;
   for (auto &F : M.functions()) {
     if (F.hasFnAttribute(Attribute::MarkedForWindowsHotPatching)) {
-      if (runOnFunction(F, RefMapping)) {
+      if (runOnFunction(F, RefMapping))
         MadeChanges = true;
-      }
     }
   }
   return MadeChanges;
@@ -168,7 +203,7 @@ bool WindowsHotPatch::runOnModule(Module &M) {
 // CodeViewDebug::emitHotPatchInformation().
 //
 // Returns true if any changes were made to the function.
-bool WindowsHotPatch::runOnFunction(
+bool WindowsSecureHotPatching::runOnFunction(
     Function &F,
     SmallDenseMap<GlobalVariable *, GlobalVariable *> &RefMapping) {
   SmallVector<GlobalVariableUse, 32> GVUses;
@@ -190,16 +225,15 @@ bool WindowsHotPatch::runOnFunction(
                         Subprogram != nullptr ? Subprogram->getUnit()
                                               : nullptr};
     replaceGlobalVariableUses(F, GVUses, RefMapping, DebugInfo);
-    if (Subprogram != nullptr) {
+    if (Subprogram != nullptr)
       DebugInfo.finalize();
-    }
     return true;
   } else {
     return false;
   }
 }
 
-void WindowsHotPatch::replaceGlobalVariableUses(
+void WindowsSecureHotPatching::replaceGlobalVariableUses(
     Function &F, SmallVectorImpl<GlobalVariableUse> &GVUses,
     SmallDenseMap<GlobalVariable *, GlobalVariable *> &RefMapping,
     DIBuilder &DebugInfo) {

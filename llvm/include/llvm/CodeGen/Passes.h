@@ -619,7 +619,7 @@ namespace llvm {
   FunctionPass *createKCFIPass();
 
   /// Creates Windows Hot Patch pass. \see WindowsHotPatch.cpp
-  ModulePass *createWindowsHotPatch();
+  ModulePass *createWindowsSecureHotPatching();
 } // End llvm namespace
 
 #endif
