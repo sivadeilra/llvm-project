@@ -454,35 +454,33 @@ CodeGenModule::CodeGenModule(ASTContext &C,
     getModule().addModuleFlag(llvm::Module::Error, "NumRegisterParameters",
                               CodeGenOpts.NumRegisterParameters);
 
-  // If there are any functions that are marked for Windows hot-patching,
+  // If there are any functions that are marked for Windows secure hot-patching,
   // then build the list of functions now.
-  if (!CGO.MSHotPatchFunctionsFile.empty() ||
-      !CGO.MSHotPatchFunctionsList.empty()) {
-    if (!CGO.MSHotPatchFunctionsFile.empty()) {
-      auto BufOrErr = llvm::MemoryBuffer::getFile(CGO.MSHotPatchFunctionsFile);
+  if (!CGO.MSSecureHotPatchFunctionsFile.empty() ||
+      !CGO.MSSecureHotPatchFunctionsList.empty()) {
+    if (!CGO.MSSecureHotPatchFunctionsFile.empty()) {
+      auto BufOrErr =
+          llvm::MemoryBuffer::getFile(CGO.MSSecureHotPatchFunctionsFile);
       if (BufOrErr) {
         const llvm::MemoryBuffer &FileBuffer = **BufOrErr;
         for (llvm::line_iterator I(FileBuffer.getMemBufferRef(), true), E;
-             I != E; ++I) {
+             I != E; ++I)
           this->MSHotPatchFunctions.push_back(std::string{*I});
-        }
       } else {
         auto &DE = Context.getDiagnostics();
         unsigned DiagID =
             DE.getCustomDiagID(DiagnosticsEngine::Error,
                                "failed to open hotpatch functions file "
                                "(-fms-hotpatch-functions-file): %0 : %1");
-        DE.Report(DiagID) << CGO.MSHotPatchFunctionsFile
+        DE.Report(DiagID) << CGO.MSSecureHotPatchFunctionsFile
                           << BufOrErr.getError().message();
       }
     }
 
-    for (const auto &FuncName : CGO.MSHotPatchFunctionsList) {
+    for (const auto &FuncName : CGO.MSSecureHotPatchFunctionsList)
       this->MSHotPatchFunctions.push_back(FuncName);
-    }
 
-    std::sort(this->MSHotPatchFunctions.begin(),
-              this->MSHotPatchFunctions.end());
+    llvm::sort(this->MSHotPatchFunctions);
   }
 }
 
