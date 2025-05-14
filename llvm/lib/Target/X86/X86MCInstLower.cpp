@@ -32,6 +32,7 @@
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/StackMaps.h"
+#include "llvm/CodeGen/WinEHFuncInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Mangler.h"
@@ -2511,6 +2512,43 @@ void X86AsmPrinter::emitInstruction(const MachineInstr *MI) {
     SMShadowTracker.emitShadowPadding(*OutStreamer, getSubtargetInfo());
     // Then emit the call
     OutStreamer->emitInstruction(TmpInst, getSubtargetInfo());
+
+    // Windows SEH:
+    if (this->OutContext.getTargetTriple().isOSBinFormatCOFF()) {
+      // TODO: do not insert NOP for TAILJMP*
+
+      llvm::errs() << "checking CALL for NOP padding, func = " << MF->getName() << "\n";
+
+      bool NeedToInsertNoop = false;
+
+      MachineBasicBlock::const_iterator MBBI(MI);
+      ++MBBI;
+      auto End = MI->getParent()->end();
+      if (MBBI != End) {
+        // There is an instruction after this CALL.
+        const MachineInstr& FollowingMI = *MBBI;
+        switch (FollowingMI.getOpcode()) {
+          case TargetOpcode::EH_LABEL:
+            llvm::errs() << "found ISD::EH_LABEL after CALL\n";
+            NeedToInsertNoop = true;
+            break;
+          default:
+            break;
+        }
+      } else {
+        // The CALL is at the end of the BB.
+        llvm::errs() << "found CALL at end of BB\n";
+        NeedToInsertNoop = true;
+      }
+
+      if (NeedToInsertNoop) {
+        llvm::errs() << "inserting NOOP\n";
+        EmitAndCountInstruction(MCInstBuilder(X86::NOOP));
+      } else {
+        llvm::errs() << "NOOP is not required\n";
+      }
+    }
+
     return;
   }
 

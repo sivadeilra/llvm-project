@@ -956,9 +956,7 @@ void WinException::computeIP2StateTable(
       // account that the return address is after the call instruction (whose EH
       // state we should be using), but on other platforms we need to +1 to the
       // label so that we are using the correct EH state.
-      const MCExpr *LabelExpression = (isAArch64 || isThumb)
-                                          ? getLabel(ChangeLabel)
-                                          : getLabelPlusOne(ChangeLabel);
+      const MCExpr *LabelExpression = getLabel(ChangeLabel);
       IPToStateTable.push_back(
           std::make_pair(LabelExpression, StateChange.NewState));
       // FIXME: assert that NewState is between CatchLow and CatchHigh.
