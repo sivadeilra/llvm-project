@@ -321,6 +321,7 @@ void initializeVirtRegMapWrapperLegacyPass(PassRegistry &);
 void initializeVirtRegRewriterPass(PassRegistry &);
 void initializeWasmEHPreparePass(PassRegistry &);
 void initializeWinEHPreparePass(PassRegistry &);
+void initializeWindowsSecureHotPatchingPass(PassRegistry &);
 void initializeWriteBitcodePassPass(PassRegistry &);
 void initializeXRayInstrumentationPass(PassRegistry &);
 

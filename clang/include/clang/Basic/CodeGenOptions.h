@@ -489,6 +489,14 @@ public:
   /// The name of a file to use with \c .secure_log_unique directives.
   std::string AsSecureLogFile;
 
+  /// The name of a file that contains functions which will be compiled for
+  /// hotpatching. See -fms-secure-hotpatch-functions-file.
+  std::string MSSecureHotPatchFunctionsFile;
+
+  /// A list of functions which will be compiled for hotpatching.
+  /// See -fms-secure-hotpatch-functions-list.
+  std::vector<std::string> MSSecureHotPatchFunctionsList;
+
 public:
   // Define accessors/mutators for code generation options of enumeration type.
 #define CODEGENOPT(Name, Bits, Default)
