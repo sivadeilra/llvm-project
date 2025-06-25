@@ -2690,8 +2690,8 @@ CXXBaseSpecifier *Sema::CheckBaseSpecifier(CXXRecordDecl *Class,
     // same attribute."
     const auto *BaseCSA = BaseDecl->getAttr<CodeSegAttr>();
     const auto *DerivedCSA = Class->getAttr<CodeSegAttr>();
-    if ((DerivedCSA || BaseCSA) &&
-        (!BaseCSA || !DerivedCSA ||
+    if (BaseCSA &&
+        (!DerivedCSA ||
          BaseCSA->getName() != DerivedCSA->getName())) {
       Diag(Class->getLocation(), diag::err_mismatched_code_seg_base);
       Diag(BaseDecl->getLocation(), diag::note_base_class_specified_here)
