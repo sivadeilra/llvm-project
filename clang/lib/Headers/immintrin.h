@@ -429,25 +429,25 @@ _writegsbase_u64(unsigned long long __V)
 // REVIEW: Decide if upgrade to builtins
 static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
 __writegsbyte(unsigned long __offset,unsigned char __data) {
-  __asm__ volatile ("movb	%0,%%gs:%c1"
+  __asm__ __volatile__ ("movb	%0,%%gs:%c1"
                     : : "ir"(__data), "ir"(__offset) : "memory");
 }
 
 static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
 __writegsword(unsigned long __offset,unsigned short __data) {
-  __asm__ volatile ("movw	%0,%%gs:%c1"
+  __asm__ __volatile__ ("movw	%0,%%gs:%c1"
                     : : "ir"(__data), "ir"(__offset) : "memory");
 }
 
 static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
 __writegsdword(unsigned long __offset,unsigned long __data) {
-  __asm__ volatile ("movl	%0,%%gs:%c1"
+  __asm__ __volatile__ ("movl	%0,%%gs:%c1"
                     : : "ir"(__data), "ir"(__offset) : "memory");
 }
 
 static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
 __writegsqword(unsigned long __offset,unsigned __int64 __data) {
-  __asm__ volatile ("movq	%0,%%gs:%c1"
+  __asm__ __volatile__ ("movq	%0,%%gs:%c1"
                     : : "ir"(__data), "ir"(__offset) : "memory");
 }
 

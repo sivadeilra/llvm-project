@@ -370,7 +370,7 @@ static __inline__ void __DEFAULT_FN_ATTRS __stosq(unsigned __int64 *__dst,
 \*----------------------------------------------------------------------------*/
 #if defined(__i386__) || (defined(__x86_64__) && !defined(__arm64ec__))
 static __inline__ void __DEFAULT_FN_ATTRS __halt(void) {
-  __asm__ volatile("hlt");
+  __asm__ __volatile__("hlt");
 }
 
 static __inline__ unsigned char __inbyte(unsigned short port) {
@@ -393,12 +393,12 @@ static __inline__ unsigned long __indword(unsigned short port) {
 
 static inline void __inbytestring(unsigned short port, unsigned char* buffer, unsigned long count)
 {
-    asm volatile("rep insb" : "+D"(buffer), "+c"(count) : "d"(port) : "memory");
+    __asm__ __volatile__("rep insb" : "+D"(buffer), "+c"(count) : "d"(port) : "memory");
 }
 
 static inline void __inwordstring(unsigned short port, unsigned short* buffer, unsigned long count)
 {
-    asm volatile("rep insw" : "+D"(buffer), "+c"(count) : "d"(port) : "memory");
+    __asm__ __volatile__("rep insw" : "+D"(buffer), "+c"(count) : "d"(port) : "memory");
 }
 
 static inline void __indwordstring(unsigned short port, unsigned long* buffer, unsigned long count)
@@ -406,7 +406,7 @@ static inline void __indwordstring(unsigned short port, unsigned long* buffer, u
     unsigned long* word_buffer = (unsigned long*)buffer;
     unsigned long word_count = count * 2;  // Each double word is 2 words
 
-    asm volatile("rep insw" : "+D"(word_buffer), "+c"(word_count) : "d"(port) : "memory");
+    __asm__ __volatile__("rep insw" : "+D"(word_buffer), "+c"(word_count) : "d"(port) : "memory");
 }
 
 static __inline__ void __outbyte(unsigned short port, unsigned char data) {
@@ -423,12 +423,12 @@ static __inline__ void __outdword(unsigned short port, unsigned long data) {
 
 static inline void __outbytestring(unsigned short port, unsigned char* buffer, unsigned long count)
 {
-    asm volatile("rep outsb" : "+S"(buffer), "+c"(count) : "d"(port) : "memory");
+    __asm__ __volatile__("rep outsb" : "+S"(buffer), "+c"(count) : "d"(port) : "memory");
 }
 
 static inline void __outwordstring(unsigned short port, unsigned short* buffer, unsigned long count)
 {
-    asm volatile("rep outsw" : "+S"(buffer), "+c"(count) : "d"(port) : "memory");
+    __asm__ __volatile__("rep outsw" : "+S"(buffer), "+c"(count) : "d"(port) : "memory");
 }
 
 static inline void __outdwordstring(unsigned short port, unsigned long* buffer, unsigned long count)
@@ -436,7 +436,7 @@ static inline void __outdwordstring(unsigned short port, unsigned long* buffer, 
     unsigned long* word_buffer = (unsigned long*)buffer;
     unsigned long word_count = count * 2;  // Each double word is 2 words
 
-    asm volatile("rep outsw" : "+S"(word_buffer), "+c"(word_count) : "d"(port) : "memory");
+    __asm__ __volatile__ ("rep outsw" : "+S"(word_buffer), "+c"(word_count) : "d"(port) : "memory");
 }
 
 static __inline__ unsigned __int64 __readpmc(unsigned long __A) {
@@ -447,7 +447,7 @@ static __inline__ unsigned __int64 __readpmc(unsigned long __A) {
 
 #if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__)
 static __inline__ void __DEFAULT_FN_ATTRS __nop(void) {
-  __asm__ volatile("nop");
+  __asm__ __volatile__("nop");
 }
 #endif
 
@@ -629,13 +629,13 @@ void __cdecl __prefetch(const void *);
 static __inline__ void  __DEFAULT_FN_ATTRS
 _disable(void)
 {
-    asm volatile ("msr DAIFSet, #2");
+    __asm__ __volatile__ ("msr DAIFSet, #2");
 }
 
 static __inline__ void __DEFAULT_FN_ATTRS
 _enable(void)
 {
-    asm volatile ("msr DAIFClr, #2");
+    __asm__ __volatile__ ("msr DAIFClr, #2");
 }
 
 static __inline__ unsigned __int32 __DEFAULT_FN_ATTRS
@@ -657,9 +657,9 @@ __stlr64(unsigned __int64 volatile * _Target, unsigned __int64 _Value)
 static __inline__ void * __DEFAULT_FN_ATTRS
 __xpaci (void *_Pointer)
 {
-    register void *__lr asm ("lr") = _Pointer;
+    register void *__lr __asm__ ("lr") = _Pointer;
 
-    asm volatile ("xpaclri" : "+r"(__lr));
+    __asm__ __volatile__ ("xpaclri" : "+r"(__lr));
     return __lr;
 }
 
@@ -685,7 +685,7 @@ __readmsr(unsigned long __register) {
 
 static __inline__ void __DEFAULT_FN_ATTRS
 __writemsr(unsigned long __register, unsigned __int64 __value) {
-    asm volatile("wrmsr" : : "d"((unsigned long)(__value >> 32)), "a"((unsigned long)__value), "c"(__register));
+    __asm__ __volatile__("wrmsr" : : "d"((unsigned long)(__value >> 32)), "a"((unsigned long)__value), "c"(__register));
 }
 
 static __inline__ unsigned __LPTRINT_TYPE__ __DEFAULT_FN_ATTRS __readcr0(void) {
@@ -740,27 +740,27 @@ static __inline__ unsigned __LPTRINT_TYPE__ __DEFAULT_FN_ATTRS __readcr8(void) {
 
 static __inline__ void __DEFAULT_FN_ATTRS
 __writecr0(unsigned __INTPTR_TYPE__ __cr0_val) {
-  __asm__ ("mov {%0, %%cr0|cr0, %0}" : : "r"(__cr0_val) : "memory");
+  __asm__ __volatile__("mov {%0, %%cr0|cr0, %0}" : : "r"(__cr0_val) : "memory");
 }
 
 static __inline__ void __DEFAULT_FN_ATTRS
 __writecr2(unsigned __INTPTR_TYPE__ __cr2_val) {
-  __asm__ ("mov {%0, %%cr2|cr2, %0}" : : "r"(__cr2_val) : "memory");
+  __asm__ __volatile__("mov {%0, %%cr2|cr2, %0}" : : "r"(__cr2_val) : "memory");
 }
 
 static __inline__ void __DEFAULT_FN_ATTRS
 __writecr3(unsigned __INTPTR_TYPE__ __cr3_val) {
-  __asm__ ("mov {%0, %%cr3|cr3, %0}" : : "r"(__cr3_val) : "memory");
+  __asm__ __volatile__("mov {%0, %%cr3|cr3, %0}" : : "r"(__cr3_val) : "memory");
 }
 
 static __inline__ void __DEFAULT_FN_ATTRS
 __writecr4(unsigned __INTPTR_TYPE__ __cr4_val) {
-  __asm__ ("mov {%0, %%cr4|cr4, %0}" : : "r"(__cr4_val) : "memory");
+  __asm__ __volatile__("mov {%0, %%cr4|cr4, %0}" : : "r"(__cr4_val) : "memory");
 }
 
 static __inline__ void __DEFAULT_FN_ATTRS
 __writecr8(unsigned __INTPTR_TYPE__ __cr8_val) {
-  __asm__ ("mov {%0, %%cr8|cr8, %0}" : : "r"(__cr8_val) : "memory");
+  __asm__ __volatile__("mov {%0, %%cr8|cr8, %0}" : : "r"(__cr8_val) : "memory");
 }
 
 static __inline__ void __lidt(void *source) {
@@ -772,11 +772,11 @@ static __inline__ void __sidt(void *source) {
 }
 
 static __inline__ void  _enable(void) {
-  __asm__ volatile("sti");
+  __asm__ __volatile__("sti");
 }
 
 static __inline__ void  _disable(void) {
-  __asm__ volatile("cli");
+  __asm__ __volatile__("cli");
 }
 
 static __inline__ void _clac(void) {
@@ -788,7 +788,7 @@ static __inline__ void _stac(void) {
 }
 
 static __inline__ void __invlpg(void *va) {
-    asm volatile("invlpg (%0)" : : "r"(va) : "memory");
+    __asm__ __volatile__("invlpg (%0)" : : "r"(va) : "memory");
 }
 
 #endif
