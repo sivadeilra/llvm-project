@@ -76,7 +76,18 @@ unsigned __int64 __swp64(unsigned __int64 volatile * _Target, unsigned __int64 _
 unsigned __int8 __swpa8(unsigned __int8 volatile * _Target, unsigned __int8 _Value);
 unsigned __int16 __swpa16(unsigned __int16 volatile * _Target, unsigned __int16 _Value);
 unsigned __int32 __swpa32(unsigned __int32 volatile * _Target, unsigned __int32 _Value);
-unsigned __int64 __swpa64(unsigned __int64 volatile * _Target, unsigned __int64 _Value);
+
+static inline unsigned __int64 __swpa64(unsigned __int64 volatile * _Target, unsigned __int64 _Value)
+{
+  unsigned __int64 _Previous;
+
+  __asm__ __volatile__("swpa %[Value], %[Previous], %[Target]"
+    : [Previous] "=r"(_Previous), [Target] "+m"(*_Target)
+    : [Value] "r"(_Value)
+  );
+  return _Previous;
+}
+
 unsigned __int8 __swpl8(unsigned __int8 volatile * _Target, unsigned __int8 _Value);
 unsigned __int16 __swpl16(unsigned __int16 volatile * _Target, unsigned __int16 _Value);
 unsigned __int32 __swpl32(unsigned __int32 volatile * _Target, unsigned __int32 _Value);
@@ -93,7 +104,16 @@ unsigned __int64 __cas64(unsigned __int64 volatile * _Target, unsigned __int64 _
 unsigned __int8 __casa8(unsigned __int8 volatile * _Target, unsigned __int8 _Comp, unsigned __int8 _Value);
 unsigned __int16 __casa16(unsigned __int16 volatile * _Target, unsigned __int16 _Comp, unsigned __int16 _Value);
 unsigned __int32 __casa32(unsigned __int32 volatile * _Target, unsigned __int32 _Comp, unsigned __int32 _Value);
-unsigned __int64 __casa64(unsigned __int64 volatile * _Target, unsigned __int64 _Comp, unsigned __int64 _Value);
+
+static inline unsigned __int64 __casa64(unsigned __int64 volatile * _Target, unsigned __int64 _Comp, unsigned __int64 _Value)
+{
+  __asm__ __volatile__("casa %[Comp], %[Value], %[Target]"
+    : [Comp] "+r"(_Comp), [Target] "+m"(*_Target)
+    : [Value] "r"(_Value)
+  );
+  return _Comp;
+}
+
 unsigned __int8 __casl8(unsigned __int8 volatile * _Target, unsigned __int8 _Comp, unsigned __int8 _Value);
 unsigned __int16 __casl16(unsigned __int16 volatile * _Target, unsigned __int16 _Comp, unsigned __int16 _Value);
 unsigned __int32 __casl32(unsigned __int32 volatile * _Target, unsigned __int32 _Comp, unsigned __int32 _Value);
