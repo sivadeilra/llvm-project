@@ -6153,6 +6153,19 @@ void CodeGenModule::EmitGlobalFunctionDefinition(GlobalDecl GD,
   auto *Fn = cast<llvm::Function>(GV);
   setFunctionLinkage(GD, Fn);
 
+  // MSVC generates a COMDAT for other compilation units for any used inline.
+  if (auto const *FD = dyn_cast<const FunctionDecl>(D)) {
+    if (getTriple().isWindowsMSVCEnvironment() && (FD->getLanguageLinkage() == CLanguageLinkage)) {
+      auto CheckRedeclForInline = [](const FunctionDecl *Redecl) {
+        return Redecl->isInlineSpecified();
+      };
+
+      if (any_of(FD->redecls(), CheckRedeclForInline)) {
+        Fn->setLinkage(llvm::Function::ExternalLinkage);
+      }
+    }
+  }
+
   // FIXME: this is redundant with part of setFunctionDefinitionAttributes
   setGVProperties(Fn, GD);
 
