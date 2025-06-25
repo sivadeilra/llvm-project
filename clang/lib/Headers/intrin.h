@@ -654,6 +654,15 @@ __stlr64(unsigned __int64 volatile * _Target, unsigned __int64 _Value)
    __c11_atomic_store((_Atomic unsigned __int64 *) _Target, _Value, 3);
 }
 
+static __inline__ void * __DEFAULT_FN_ATTRS
+__xpaci (void *_Pointer)
+{
+    register void *__lr asm ("lr") = _Pointer;
+
+    asm volatile ("xpaclri" : "+r"(__lr));
+    return __lr;
+}
+
 #endif
 
 /*----------------------------------------------------------------------------*\
