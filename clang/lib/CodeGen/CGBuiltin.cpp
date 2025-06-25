@@ -11761,19 +11761,29 @@ Value *CodeGenFunction::EmitAArch64BuiltinExpr(unsigned BuiltinID,
   }
 
   if (BuiltinID == clang::AArch64::BI_ReadStatusReg ||
-      BuiltinID == clang::AArch64::BI_WriteStatusReg) {
+      BuiltinID == clang::AArch64::BI_WriteStatusReg ||
+      BuiltinID == clang::AArch64::BI__sys) {
     LLVMContext &Context = CGM.getLLVMContext();
 
     unsigned SysReg =
       E->getArg(0)->EvaluateKnownConstInt(getContext()).getZExtValue();
 
     std::string SysRegStr;
-    llvm::raw_string_ostream(SysRegStr) <<
-                       ((1 << 1) | ((SysReg >> 14) & 1))  << ":" <<
-                       ((SysReg >> 11) & 7)               << ":" <<
-                       ((SysReg >> 7)  & 15)              << ":" <<
-                       ((SysReg >> 3)  & 15)              << ":" <<
-                       ( SysReg        & 7);
+    if (BuiltinID != clang::AArch64::BI__sys) {
+      llvm::raw_string_ostream(SysRegStr) <<
+          ((1 << 1) | ((SysReg >> 14) & 1))  << ":" <<
+          ((SysReg >> 11) & 7)               << ":" <<
+          ((SysReg >> 7)  & 15)              << ":" <<
+          ((SysReg >> 3)  & 15)              << ":" <<
+          ( SysReg        & 7);
+    } else {
+      llvm::raw_string_ostream(SysRegStr) <<
+          1  << ":" <<
+          ((SysReg >> 11) & 7)               << ":" <<
+          ((SysReg >> 7)  & 15)              << ":" <<
+          ((SysReg >> 3)  & 15)              << ":" <<
+          ( SysReg        & 7);
+    }
 
     llvm::Metadata *Ops[] = { llvm::MDString::get(Context, SysRegStr) };
     llvm::MDNode *RegName = llvm::MDNode::get(Context, Ops);
@@ -11791,7 +11801,14 @@ Value *CodeGenFunction::EmitAArch64BuiltinExpr(unsigned BuiltinID,
     llvm::Function *F = CGM.getIntrinsic(llvm::Intrinsic::write_register, Types);
     llvm::Value *ArgValue = EmitScalarExpr(E->getArg(1));
 
-    return Builder.CreateCall(F, { Metadata, ArgValue });
+    if (BuiltinID == clang::AArch64::BI_WriteStatusReg) {
+      return Builder.CreateCall(F, { Metadata, ArgValue });
+    } else {
+      Builder.CreateCall(F, { Metadata, ArgValue });
+      // Return 0 for convenience, even though MSVC returns some other undefined
+      // value.
+      return ConstantInt::get(Builder.getInt32Ty(), 0);
+    }
   }
 
   if (BuiltinID == clang::AArch64::BI_AddressOfReturnAddress) {

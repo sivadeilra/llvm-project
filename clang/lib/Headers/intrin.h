@@ -458,6 +458,7 @@ static __inline__ void __DEFAULT_FN_ATTRS __nop(void) {
 unsigned __int64 __getReg(int);
 __int64 _ReadStatusReg(int);
 void _WriteStatusReg(int, __int64);
+unsigned int __sys(int, __int64);
 
 unsigned short __cdecl _byteswap_ushort(unsigned short val);
 unsigned long __cdecl _byteswap_ulong (unsigned long val);
