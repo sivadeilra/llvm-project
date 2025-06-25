@@ -686,6 +686,9 @@ enum UseListCodes {
 };
 
 enum AttributeKindCodes {
+  // TODO: assign real values; these are placed here to reduce likelihood of merge conflicts with additions
+  ATTR_KIND_NO_SHRINKWRAP = INT_MAX,
+
   // = 0 is unused
   ATTR_KIND_ALIGNMENT = 1,
   ATTR_KIND_ALWAYS_INLINE = 2,
