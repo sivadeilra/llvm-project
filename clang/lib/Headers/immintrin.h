@@ -426,6 +426,103 @@ _writegsbase_u64(unsigned long long __V)
   __builtin_ia32_wrgsbase64(__V);
 }
 
+// REVIEW: Decide if upgrade to builtins
+static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
+__writegsbyte(unsigned long __offset,unsigned char __data) {
+  __asm__ volatile ("movb	%0,%%gs:%c1"
+                    : : "ir"(__data), "ir"(__offset) : "memory");
+}
+
+static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
+__writegsword(unsigned long __offset,unsigned short __data) {
+  __asm__ volatile ("movw	%0,%%gs:%c1"
+                    : : "ir"(__data), "ir"(__offset) : "memory");
+}
+
+static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
+__writegsdword(unsigned long __offset,unsigned long __data) {
+  __asm__ volatile ("movl	%0,%%gs:%c1"
+                    : : "ir"(__data), "ir"(__offset) : "memory");
+}
+
+static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
+__writegsqword(unsigned long __offset,unsigned __int64 __data) {
+  __asm__ volatile ("movq	%0,%%gs:%c1"
+                    : : "ir"(__data), "ir"(__offset) : "memory");
+}
+
+static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
+__addgsbyte(unsigned long __offset, unsigned char __data) {
+  __asm__ __volatile__ (
+      "addb %1, %%gs:(%c0)"
+      :
+      : "ir"(__offset), "ir"(__data)
+      : "memory");
+}
+
+static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
+__addgsword(unsigned long __offset, unsigned short __data) {
+  __asm__ __volatile__ (
+      "addw %1, %%gs:(%c0)"
+      :
+      : "ir"(__offset), "ir"(__data)
+      : "memory");
+}
+
+static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
+__addgsdword(unsigned long __offset, unsigned long __data) {
+  __asm__ __volatile__ (
+      "addl %1, %%gs:(%c0)"
+      :
+      : "ir"(__offset), "ir"(__data)
+      : "memory");
+}
+
+static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
+__addgsqword(unsigned long __offset, unsigned __int64 __data) {
+  __asm__ __volatile__ (
+      "add %1, %%gs:(%c0)"
+      :
+      : "ir"(__offset), "ir"(__data)
+      : "memory");
+}
+
+static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
+__incgsbyte(unsigned long __offset) {
+  __asm__ __volatile__ (
+      "incb %%gs:(%c0)"
+      :
+      : "ir"(__offset)
+      : "memory");
+}
+
+static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
+__incgsword(unsigned long __offset) {
+  __asm__ __volatile__ (
+      "incw %%gs:(%c0)"
+      :
+      : "ir"(__offset)
+      : "memory");
+}
+
+static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
+__incgsdword(unsigned long __offset) {
+  __asm__ __volatile__ (
+      "incl %%gs:(%c0)"
+      :
+      : "ir"(__offset)
+      : "memory");
+}
+
+static __inline__ void __attribute__((__always_inline__, __nodebug__, __target__("fsgsbase")))
+__incgsqword(unsigned long __offset) {
+  __asm__ __volatile__ (
+      "inc %%gs:(%c0)"
+      :
+      : "ir"(__offset)
+      : "memory");
+}
+
 #endif
 #endif /* __FSGSBASE__ */
 

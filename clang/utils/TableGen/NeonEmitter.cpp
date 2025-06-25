@@ -2667,6 +2667,12 @@ __arm_set_fpm_lscale2(fpm_t __fpm, uint64_t __scale) {
   emitNeonTypeDefs("cQcsQsiQilQlUcQUcUsQUsUiQUiUlQUlmQmhQhfQfdQd", OS);
 
   emitNeonTypeDefs("bQb", OS);
+
+  OS << "#ifdef _MSC_VER\n";
+  OS << "typedef uint8x16_t __n128;\n";
+  OS << "typedef uint8x8_t __n64;\n";
+  OS << "#endif\n\n";
+
   OS << "#endif // __ARM_NEON_TYPES_H\n";
 }
 

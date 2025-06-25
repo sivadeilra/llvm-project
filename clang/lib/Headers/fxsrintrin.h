@@ -45,9 +45,9 @@ _fxsave(void *__p)
 ///    A pointer to a 512-byte memory region. The beginning of this memory
 ///    region should be aligned on a 16-byte boundary.
 static __inline__ void __DEFAULT_FN_ATTRS
-_fxrstor(void *__p)
+_fxrstor(void const *__p)
 {
-  __builtin_ia32_fxrstor(__p);
+  __builtin_ia32_fxrstor((void *) __p);
 }
 
 #ifdef __x86_64__
@@ -80,9 +80,9 @@ _fxsave64(void *__p)
 ///    A pointer to a 512-byte memory region. The beginning of this memory
 ///    region should be aligned on a 16-byte boundary.
 static __inline__ void __DEFAULT_FN_ATTRS
-_fxrstor64(void *__p)
+_fxrstor64(void const *__p)
 {
-  __builtin_ia32_fxrstor64(__p);
+  __builtin_ia32_fxrstor64((void *)__p);
 }
 #endif
 

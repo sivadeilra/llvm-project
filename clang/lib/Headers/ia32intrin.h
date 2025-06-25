@@ -534,7 +534,7 @@ __rdtscp(unsigned int *__A) {
 #define _rdpmc(A) __rdpmc(A)
 
 static __inline__ void __DEFAULT_FN_ATTRS
-_wbinvd(void) {
+__wbinvd(void) {
   __builtin_ia32_wbinvd();
 }
 

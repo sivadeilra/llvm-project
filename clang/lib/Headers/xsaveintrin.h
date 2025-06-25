@@ -27,8 +27,8 @@ _xsave(void *__p, unsigned long long __m) {
 }
 
 static __inline__ void __DEFAULT_FN_ATTRS
-_xrstor(void *__p, unsigned long long __m) {
-  __builtin_ia32_xrstor(__p, __m);
+_xrstor(void const *__p, unsigned long long __m) {
+  __builtin_ia32_xrstor((void *)__p, __m);
 }
 
 #ifndef _MSC_VER
@@ -52,8 +52,8 @@ _xsave64(void *__p, unsigned long long __m) {
 }
 
 static __inline__ void __DEFAULT_FN_ATTRS
-_xrstor64(void *__p, unsigned long long __m) {
-  __builtin_ia32_xrstor64(__p, __m);
+_xrstor64(void const *__p, unsigned long long __m) {
+  __builtin_ia32_xrstor64((void *)__p, __m);
 }
 
 #endif
