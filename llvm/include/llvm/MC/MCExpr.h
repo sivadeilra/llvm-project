@@ -325,6 +325,7 @@ public:
     VK_PPC_PCREL_OPT,       // .reloc expr, R_PPC64_PCREL_OPT, expr
 
     VK_COFF_IMGREL32, // symbol@imgrel (image-relative)
+    VK_COFF_DYNFIXUP, // Absolute relocation for external tooling
 
     VK_Hexagon_LO16,
     VK_Hexagon_HI16,

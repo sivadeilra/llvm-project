@@ -48,6 +48,7 @@ public:
 unsigned AArch64WinCOFFObjectWriter::getRelocType(
     MCContext &Ctx, const MCValue &Target, const MCFixup &Fixup,
     bool IsCrossSection, const MCAsmBackend &MAB) const {
+
   unsigned FixupKind = Fixup.getKind();
   if (IsCrossSection) {
     // IMAGE_REL_ARM64_REL64 does not exist. We treat FK_Data_8 as FK_PCRel_4 so
@@ -108,7 +109,10 @@ unsigned AArch64WinCOFFObjectWriter::getRelocType(
     }
 
   case FK_Data_8:
-    return COFF::IMAGE_REL_ARM64_ADDR64;
+    if (Modifier == MCSymbolRefExpr::VK_COFF_DYNFIXUP)
+      return COFF::IMAGE_REL_ARM64_ABSOLUTE;
+    else
+      return COFF::IMAGE_REL_ARM64_ADDR64;
 
   case FK_SecRel_2:
     return COFF::IMAGE_REL_ARM64_SECTION;

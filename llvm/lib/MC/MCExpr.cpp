@@ -390,6 +390,7 @@ StringRef MCSymbolRefExpr::getVariantKindName(VariantKind Kind) {
   case VK_PPC_NOTOC: return "notoc";
   case VK_PPC_PCREL_OPT: return "<<invalid>>";
   case VK_COFF_IMGREL32: return "IMGREL";
+  case VK_COFF_DYNFIXUP: return "DYNFIXUP";
   case VK_Hexagon_LO16: return "LO16";
   case VK_Hexagon_HI16: return "HI16";
   case VK_Hexagon_GPREL: return "GPREL";
@@ -463,6 +464,7 @@ MCSymbolRefExpr::getVariantKindForName(StringRef Name) {
       .Case("gotpage", VK_GOTPAGE)
       .Case("gotpageoff", VK_GOTPAGEOFF)
       .Case("imgrel", VK_COFF_IMGREL32)
+      .Case("dynfixup", VK_COFF_DYNFIXUP)
       .Case("secrel32", VK_SECREL)
       .Case("size", VK_SIZE)
       .Case("abs8", VK_X86_ABS8)

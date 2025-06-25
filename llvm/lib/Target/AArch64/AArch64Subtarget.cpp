@@ -24,6 +24,7 @@
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/IR/GlobalValue.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/Support/SipHash.h"
 #include "llvm/TargetParser/AArch64TargetParser.h"
 
@@ -453,6 +454,14 @@ AArch64Subtarget::ClassifyGlobalReference(const GlobalValue *GV,
   // absolute relocation on all global addresses.
   if (TM.getCodeModel() == CodeModel::Large && isTargetMachO())
     return AArch64II::MO_GOT;
+
+  // MSVC Dynamic fixup requires a an absolute relocation.  Load from constant
+  // pool and apply that relocation there.
+  if (const auto *GVar = dyn_cast<llvm::GlobalVariable>(GV)) {
+    if (GVar->hasAttribute("msvc_dynfixup")) {
+      return AArch64II::MO_DYNFIXUP;
+    }
+  }
 
   // All globals dynamically protected by MTE must have their address tags
   // synthesized. This is done by having the loader stash the tag in the GOT

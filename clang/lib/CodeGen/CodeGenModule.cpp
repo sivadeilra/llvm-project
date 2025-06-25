@@ -5144,6 +5144,14 @@ CodeGenModule::GetOrCreateLLVMGlobal(StringRef MangledName, llvm::Type *Ty,
         isExternallyVisible(D->getLinkageAndVisibility().getLinkage()))
       GV->setSection(".cp.rodata");
 
+    // Propagate MSVC dynamic fixup attribute for globals for further handling
+    // in target(s).
+    if (getTriple().isWindowsMSVCEnvironment() &&
+        D->getLanguageLinkage() == CLanguageLinkage &&
+        isExternallyVisible(D->getLinkageAndVisibility().getLinkage()))
+      if (const DynamicFixupAttr *DA = D->getAttr<DynamicFixupAttr>())
+        GV->addAttribute("msvc_dynfixup");
+
     // Handle code model attribute
     if (const auto *CMA = D->getAttr<CodeModelAttr>())
       GV->setCodeModel(CMA->getModel());

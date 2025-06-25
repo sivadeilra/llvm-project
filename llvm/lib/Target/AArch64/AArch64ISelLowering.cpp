@@ -9973,6 +9973,17 @@ SDValue AArch64TargetLowering::LowerGlobalAddress(SDValue Op,
   }
 
   SDValue Result;
+  SDLoc DL(GN);
+  EVT PtrVT = getPointerTy(DAG.getDataLayout());
+
+  // Dynamic fixups require an absolute relocation, so lower to a load from the
+  // constant pool where this relocation can be applied.
+  if ((OpFlags & AArch64II::MO_DYNFIXUP) != 0) {
+    Result = DAG.getTargetConstantPool(GV, PtrVT, Align(8));
+    Result = DAG.getNode(AArch64ISD::LOADgot, DL, PtrVT, Result);
+    return Result;
+  }
+
   if (getTargetMachine().getCodeModel() == CodeModel::Large &&
       !getTargetMachine().isPositionIndependent()) {
     Result = getAddrLarge(GN, DAG, OpFlags);
@@ -9981,8 +9992,6 @@ SDValue AArch64TargetLowering::LowerGlobalAddress(SDValue Op,
   } else {
     Result = getAddr(GN, DAG, OpFlags);
   }
-  EVT PtrVT = getPointerTy(DAG.getDataLayout());
-  SDLoc DL(GN);
   if (OpFlags & (AArch64II::MO_DLLIMPORT | AArch64II::MO_COFFSTUB))
     Result = DAG.getLoad(PtrVT, DL, DAG.getEntryNode(), Result,
                          MachinePointerInfo::getGOT(DAG.getMachineFunction()));

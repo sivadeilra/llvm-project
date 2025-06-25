@@ -82,6 +82,8 @@ unsigned X86WinCOFFObjectWriter::getRelocType(MCContext &Ctx,
         return COFF::IMAGE_REL_AMD64_SECREL;
       return COFF::IMAGE_REL_AMD64_ADDR32;
     case FK_Data_8:
+      if (Modifier == MCSymbolRefExpr::VK_COFF_DYNFIXUP)
+        return COFF::IMAGE_REL_AMD64_ABSOLUTE;
       return COFF::IMAGE_REL_AMD64_ADDR64;
     case FK_SecRel_2:
       return COFF::IMAGE_REL_AMD64_SECTION;

@@ -863,6 +863,13 @@ enum TOF {
   /// uses "__imp_aux".  For other symbols, this means it uses the mangled
   /// ("#" prefix for C) name.
   MO_ARM64EC_CALLMANGLE = 0x800,
+
+  /// MO_DYNFIXUP - This flag indicates that this symbol will be dynamically
+  // fixed up -- first by the linker, and then potentially at runtime.
+  // Reference it from the literal pool with an ABS relocation
+  // N.B. Never stored so does not exceed 12 bits associated with target flags
+  MO_DYNFIXUP = 0x1000,
+
 };
 } // end namespace AArch64II
 

@@ -6504,6 +6504,11 @@ static void handleVTablePointerAuthentication(Sema &S, Decl *D,
       CustomDiscriminationValue));
 }
 
+static void handleDynamicFixup(Sema &S, Decl *D,
+                               const ParsedAttr &AL) {
+  D->addAttr(::new ( S.Context) DynamicFixupAttr(S.Context, AL));
+}
+
 //===----------------------------------------------------------------------===//
 // Top Level Sema Entry Points
 //===----------------------------------------------------------------------===//
@@ -7413,6 +7418,11 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
   case ParsedAttr::AT_VTablePointerAuthentication:
     handleVTablePointerAuthentication(S, D, AL);
     break;
+
+  case ParsedAttr::AT_DynamicFixup:
+    handleDynamicFixup(S, D, AL);
+    break;
+
   }
 }
 

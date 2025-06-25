@@ -5004,3 +5004,10 @@ def NoTrivialAutoVarInit: InheritableAttr {
   let Documentation = [NoTrivialAutoVarInitDocs];
   let SimpleHandler = 1;
 }
+
+def DynamicFixup : InheritableAttr {
+  let Spellings = [Declspec<"dynfixup">];
+  let Subjects = SubjectList<[ExternalGlobalVar]>;
+  let LangOpts = [MicrosoftExt];
+  let Documentation = [Undocumented];
+}

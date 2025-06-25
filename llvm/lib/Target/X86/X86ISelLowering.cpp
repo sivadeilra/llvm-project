@@ -18990,7 +18990,19 @@ SDValue X86TargetLowering::LowerGlobalOrExternal(SDValue Op, SelectionDAG &DAG,
         X86::isOffsetSuitableForCodeModel(Offset, M, true)) {
       std::swap(GlobalOffset, Offset);
     }
-    Result = DAG.getTargetGlobalAddress(GV, dl, PtrVT, GlobalOffset, OpFlags);
+    bool fromConstantPool = false;
+    if (const auto *GVar = dyn_cast<llvm::GlobalVariable>(GV)) {
+      if (GVar->hasAttribute("msvc_dynfixup")) {
+        fromConstantPool = true;
+      }
+    }
+    if (!fromConstantPool) {
+      Result = DAG.getTargetGlobalAddress(GV, dl, PtrVT, GlobalOffset, OpFlags);
+    } else {
+      // XXX offset issues?
+      Result = DAG.getTargetConstantPool(GV, PtrVT, Align(8));
+      NeedsLoad = true;
+    }
   } else {
     // If this is not a global address, this must be an external symbol.
     Result = DAG.getTargetExternalSymbol(ExternalSym, PtrVT, OpFlags);

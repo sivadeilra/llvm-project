@@ -182,6 +182,8 @@ public:
   }
 
   bool runOnMachineFunction(MachineFunction &MF) override;
+  const MCExpr *lowerConstant(const Constant *CV) override;
+
   void emitFunctionBodyStart() override;
   void emitFunctionBodyEnd() override;
   void emitKCFITypeId(const MachineFunction &MF) override;
