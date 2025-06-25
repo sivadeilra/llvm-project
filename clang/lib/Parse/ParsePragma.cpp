@@ -1108,10 +1108,10 @@ bool Parser::HandlePragmaMSSection(StringRef PragmaName,
       .Case("read", ASTContext::PSF_Read)
       .Case("write", ASTContext::PSF_Write)
       .Case("execute", ASTContext::PSF_Execute)
-      .Case("shared", ASTContext::PSF_Invalid)
-      .Case("nopage", ASTContext::PSF_Invalid)
+      .Case("shared", ASTContext::PSF_Shared)
+      .Case("nopage", ASTContext::PSF_NoPage)
       .Case("nocache", ASTContext::PSF_Invalid)
-      .Case("discard", ASTContext::PSF_Invalid)
+      .Case("discard", ASTContext::PSF_Discard)
       .Case("remove", ASTContext::PSF_Invalid)
       .Default(ASTContext::PSF_None);
     if (Flag == ASTContext::PSF_None || Flag == ASTContext::PSF_Invalid) {

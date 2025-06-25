@@ -1678,6 +1678,25 @@ static int getSelectionForCOFF(const GlobalValue *GV) {
 MCSection *TargetLoweringObjectFileCOFF::getExplicitSectionGlobal(
     const GlobalObject *GO, SectionKind Kind, const TargetMachine &TM) const {
   StringRef Name = handlePragmaClangSection(GO, Kind);
+
+  // Check if pragma section names are valid
+  const GlobalVariable *GV = dyn_cast<GlobalVariable>(GO);
+  if (GV && GV->hasImplicitSection()) {
+    auto Attrs = GV->getAttributes();
+    if (Attrs.hasAttribute("bss-section") && Kind.isBSS()) {
+      Name = Attrs.getAttribute("bss-section").getValueAsString();
+    } else if (Attrs.hasAttribute("rodata-section") && Kind.isReadOnly()) {
+      Name = Attrs.getAttribute("rodata-section").getValueAsString();
+#if 0
+    } else if (Attrs.hasAttribute("relro-section") && Kind.isReadOnlyWithRel()) {
+      Name = Attrs.getAttribute("relro-section").getValueAsString();
+#endif
+    } else if (Attrs.hasAttribute("data-section") && Kind.isData()) {
+      Name = Attrs.getAttribute("data-section").getValueAsString();
+    }
+  }
+
+
   if (Name == getInstrProfSectionName(IPSK_covmap, Triple::COFF,
                                       /*AddSegmentInfo=*/false) ||
       Name == getInstrProfSectionName(IPSK_covfun, Triple::COFF,

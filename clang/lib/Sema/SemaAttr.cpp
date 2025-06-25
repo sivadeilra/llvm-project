@@ -845,18 +845,38 @@ bool Sema::UnifySection(StringRef SectionName,
   return false;
 }
 
-/// Called on well formed \#pragma bss_seg().
+void Sema::AttachSectionFlags(VarDecl *VD, StringRef SectionName) {
+  auto SectionIt = Context.SectionInfos.find(SectionName);
+  if (SectionIt != Context.SectionInfos.end()) {
+    const auto &Section = SectionIt->second;
+
+    VD->addAttr(SectionFlagsAttr::CreateImplicit(Context, Section.SectionFlags));
+  } else {
+    Diag(VD->getLocation(), diag::err_section_unknown) << VD->getName() << SectionName;
+  }
+}
+
+/// Called on well formed \#pragma data_seg|bss_seg|const_seg|code_seg
 void Sema::ActOnPragmaMSSeg(SourceLocation PragmaLocation,
                             PragmaMsStackAction Action,
                             llvm::StringRef StackSlotLabel,
                             StringLiteral *SegmentName,
                             llvm::StringRef PragmaName) {
-  PragmaStack<StringLiteral *> *Stack =
-    llvm::StringSwitch<PragmaStack<StringLiteral *> *>(PragmaName)
+  PragmaStack<std::string> *Stack =
+      llvm::StringSwitch<PragmaStack<std::string> *>(PragmaName)
         .Case("data_seg", &DataSegStack)
         .Case("bss_seg", &BSSSegStack)
         .Case("const_seg", &ConstSegStack)
         .Case("code_seg", &CodeSegStack);
+
+  int SectionFlags = ASTContext::PSF_Read;
+  if (Stack == &DataSegStack)
+    SectionFlags |= ASTContext::PSF_Write;
+  else if (Stack == &BSSSegStack)
+    SectionFlags |= ASTContext::PSF_Write | ASTContext::PSF_ZeroInit;
+  else if (Stack == &CodeSegStack)
+    SectionFlags |= ASTContext::PSF_Execute;
+
   if (Action & PSK_Pop && Stack->Stack.empty())
     Diag(PragmaLocation, diag::warn_pragma_pop_failed) << PragmaName
         << "stack empty";
@@ -869,7 +889,14 @@ void Sema::ActOnPragmaMSSeg(SourceLocation PragmaLocation,
       Diag(PragmaLocation, diag::warn_attribute_section_drectve) << PragmaName;
   }
 
-  Stack->Act(PragmaLocation, Action, StackSlotLabel, SegmentName);
+  if (Action & PSK_Set && SegmentName)
+    UnifySection(SegmentName->getString(), SectionFlags, PragmaLocation);
+
+  if (SegmentName) {
+    Stack->Act(PragmaLocation, Action, StackSlotLabel, std::string(SegmentName->getString()));
+  } else {
+    Stack->Act(PragmaLocation, Action, StackSlotLabel, std::string(""));
+  }
 }
 
 /// Called on well formed \#pragma strict_gs_check().
@@ -883,19 +910,22 @@ void Sema::ActOnPragmaMSStrictGuardStackCheck(SourceLocation PragmaLocation,
   StrictGuardStackCheckStack.Act(PragmaLocation, Action, StringRef(), Value);
 }
 
-/// Called on well formed \#pragma bss_seg().
+/// Called on well formed \#pragma section
 void Sema::ActOnPragmaMSSection(SourceLocation PragmaLocation,
                                 int SectionFlags, StringLiteral *SegmentName) {
   UnifySection(SegmentName->getString(), SectionFlags, PragmaLocation);
 }
 
+/// Called on well formed \#pragma init_seg
 void Sema::ActOnPragmaMSInitSeg(SourceLocation PragmaLocation,
                                 StringLiteral *SegmentName) {
   // There's no stack to maintain, so we just have a current section.  When we
   // see the default section, reset our current section back to null so we stop
   // tacking on unnecessary attributes.
-  CurInitSeg = SegmentName->getString() == ".CRT$XCU" ? nullptr : SegmentName;
+  CurInitSeg = SegmentName->getString() == ".CRT$XCU" ? "" : SegmentName->getString();
   CurInitSegLoc = PragmaLocation;
+
+  // Should call UnifySection but with what flags?
 }
 
 void Sema::ActOnPragmaMSAllocText(
@@ -906,6 +936,8 @@ void Sema::ActOnPragmaMSAllocText(
     Diag(PragmaLocation, diag::err_pragma_expected_file_scope) << "alloc_text";
     return;
   }
+
+  UnifySection(Section, ASTContext::PSF_Read | ASTContext::PSF_Execute, PragmaLocation);
 
   for (auto &Function : Functions) {
     IdentifierInfo *II;

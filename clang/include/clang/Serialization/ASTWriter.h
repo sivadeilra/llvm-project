@@ -630,6 +630,10 @@ private:
   void WriteMSPointersToMembersPragmaOptions(Sema &SemaRef);
   void WritePackPragmaOptions(Sema &SemaRef);
   void WriteFloatControlPragmaOptions(Sema &SemaRef);
+  void WriteInitSection(Sema &SemaRef);
+  void WriteSectionInfos(Sema &SemaRef);
+  void WriteSegmentStack(Sema::PragmaStack<std::string> &SegmentStack, StringRef SegmentName);
+  void WriteSegmentStacks(Sema &SemaRef);
   void WriteDeclsWithEffectsToVerify(Sema &SemaRef);
   void WriteModuleFileExtension(Sema &SemaRef,
                                 ModuleFileExtensionWriter &Writer);

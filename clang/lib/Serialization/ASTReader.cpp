@@ -4313,6 +4313,71 @@ llvm::Error ASTReader::ReadASTBlock(ModuleFile &F,
       for (unsigned I = 0, N = Record.size(); I != N; /*in loop*/)
         DeclsToCheckForDeferredDiags.insert(ReadDeclID(F, Record, I));
       break;
+
+    case CURRENT_INIT_SECTION: {
+      if (Record.size() < 2)
+        return llvm::createStringError(std::errc::illegal_byte_sequence,
+                                       "invalid init_seg record");
+
+      unsigned Idx = 0;
+      auto SectionName = ReadString(Record, Idx);
+      auto PragmaLocation = ReadSourceLocation(F, Record[Idx]);
+      CurInitSeg = SectionName;
+      CurInitSegLoc = PragmaLocation;
+      break;
+    }
+
+    case SECTION_INFOS: {
+      if (Record.size() < 1)
+        return llvm::createStringError(std::errc::illegal_byte_sequence,
+                                       "invalid section infos record");
+      unsigned Idx = 0;
+      unsigned NumEntries = Record[Idx++];
+      SectionInfos.clear();
+      for (unsigned i = 0 ; i < NumEntries; i++) {
+        SectionInfo Entry;
+
+        Entry.SectionName = ReadString(Record, Idx);
+        Entry.PragmaSectionLocation  = ReadSourceLocation(F, Record[Idx++]);
+        Entry.SectionFlags = Record[Idx++];
+        SectionInfos.push_back(Entry);
+      }
+      break;
+    }
+
+    case SEGMENT_PRAGMA_OPTIONS: {
+      if (Record.size() < 4)
+        return llvm::createStringError(std::errc::illegal_byte_sequence,
+                                       "invalid pragma segment record");
+      unsigned Idx = 0;
+      auto SegmentName = ReadString(Record, Idx);
+      auto CurrentValue = ReadString(Record, Idx);
+      auto CurrentLocation = ReadSourceLocation(F, Record[Idx++]);
+      unsigned NumStackEntries = Record[Idx++];
+
+      PragmaSegmentStackState *SegmentState =
+          llvm::StringSwitch<PragmaSegmentStackState *>(SegmentName)
+          .Case("data", &PragmaDataSegmentStackState)
+          .Case("bss", &PragmaBSSSegmentStackState)
+          .Case("const", &PragmaConstSegmentStackState)
+          .Case("code", &PragmaCodeSegmentStackState);
+
+    // Reset the stack when importing a new module.
+      SegmentState->PragmaCurrentValue = CurrentValue;
+      SegmentState->PragmaCurrentLocation = CurrentLocation;
+      SegmentState->PragmaStack.clear();
+      for (unsigned I = 0; I < NumStackEntries; ++I) {
+        PragmaSegmentStackEntry Entry;
+        Entry.Value = ReadString(Record, Idx);
+        Entry.Location = ReadSourceLocation(F, Record[Idx++]);
+        Entry.PushLocation = ReadSourceLocation(F, Record[Idx++]);
+        SegmentState->PragmaStrings.push_back(ReadString(Record, Idx));
+        Entry.SlotLabel = SegmentState->PragmaStrings.back();
+        SegmentState->PragmaStack.push_back(Entry);
+      }
+      break;
+    }
+
     }
   }
 }
@@ -5466,6 +5531,12 @@ void ASTReader::InitializeContext() {
       // This updates visibility for Preprocessor only. For Sema, which can be
       // nullptr here, we do the same later, in UpdateSema().
     }
+  }
+
+  // Merge section info with existing SectionInfos
+  for (const auto &Entry : llvm::ArrayRef(SectionInfos)) {
+    Context.SectionInfos[Entry.SectionName] =
+        ASTContext::SectionInfo(nullptr, Entry.PragmaSectionLocation, Entry.SectionFlags);
   }
 
   // Hand off these modules to Sema.
@@ -8810,6 +8881,42 @@ void ASTReader::InitializeSema(Sema &S) {
   UpdateSema();
 }
 
+void ASTReader::UpdateSemaPragmaSegment(PragmaSegmentStackState &StackState, Sema::PragmaStack<std::string> &PragmaStack) {
+  if (StackState.PragmaCurrentValue) {
+    // The bottom of the stack might have a default value. It must be adjusted
+    // to the current value to ensure that the segment state is preserved after
+    // popping entries that were included/imported from a PCH/module.
+    bool DropFirst = false;
+    if (!StackState.PragmaStack.empty() &&
+        StackState.PragmaStack.front().Location.isInvalid()) {
+      assert(StackState.PragmaStack.front().Value ==
+                 PragmaStack.DefaultValue &&
+             "Expected a default section value");
+      PragmaStack.Stack.emplace_back(
+          StackState.PragmaStack.front().SlotLabel,
+          PragmaStack.CurrentValue,
+          PragmaStack.CurrentPragmaLocation,
+          StackState.PragmaStack.front().PushLocation);
+      DropFirst = true;
+    }
+    for (const auto &Entry :
+         llvm::ArrayRef(StackState.PragmaStack).drop_front(DropFirst ? 1 : 0)) {
+      PragmaStack.Stack.emplace_back(
+          Entry.SlotLabel, Entry.Value, Entry.Location, Entry.PushLocation);
+    }
+    if (StackState.PragmaCurrentLocation.isInvalid()) {
+      assert(StackState.PragmaCurrentValue ==
+                 PragmaStack.DefaultValue &&
+             "Expected a default section value");
+      // Keep the current values.
+    } else {
+      PragmaStack.CurrentValue = *StackState.PragmaCurrentValue;
+      PragmaStack.CurrentPragmaLocation =
+          StackState.PragmaCurrentLocation;
+    }
+  }
+}
+
 void ASTReader::UpdateSema() {
   assert(SemaObj && "no Sema to update");
 
@@ -8903,6 +9010,14 @@ void ASTReader::UpdateSema() {
       SemaObj->FpPragmaStack.CurrentPragmaLocation = FpPragmaCurrentLocation;
     }
   }
+
+  SemaObj->CurInitSeg = CurInitSeg;
+  SemaObj->CurInitSegLoc = CurInitSegLoc;
+
+  UpdateSemaPragmaSegment(PragmaDataSegmentStackState, SemaObj->DataSegStack);
+  UpdateSemaPragmaSegment(PragmaBSSSegmentStackState, SemaObj->BSSSegStack);
+  UpdateSemaPragmaSegment(PragmaConstSegmentStackState, SemaObj->ConstSegStack);
+  UpdateSemaPragmaSegment(PragmaCodeSegmentStackState, SemaObj->CodeSegStack);
 
   // For non-modular AST files, restore visiblity of modules.
   for (auto &Import : PendingImportedModulesSema) {

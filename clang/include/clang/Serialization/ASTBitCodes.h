@@ -742,6 +742,15 @@ enum ASTRecordTypes {
   UPDATE_MODULE_LOCAL_VISIBLE = 76,
 
   UPDATE_TU_LOCAL_VISIBLE = 77,
+
+  // Record for for current init section
+  CURRENT_INIT_SECTION = 78,
+
+  // Record code for the SectionInfos table that records the known sections
+  SECTION_INFOS = 79,
+
+  // Record code for the pragma segment stacks
+  SEGMENT_PRAGMA_OPTIONS = 80,
 };
 
 /// Record types used within a source manager block.

@@ -2941,6 +2941,9 @@ static void handleSectionAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   SectionAttr *NewAttr = S.mergeSectionAttr(D, AL, Str);
   if (NewAttr) {
     D->addAttr(NewAttr);
+    if (auto *VD = dyn_cast<VarDecl>(D))
+      S.AttachSectionFlags(VD, Str);
+
     if (isa<FunctionDecl, FunctionTemplateDecl, ObjCMethodDecl,
             ObjCPropertyDecl>(D))
       S.UnifySection(NewAttr->getName(),

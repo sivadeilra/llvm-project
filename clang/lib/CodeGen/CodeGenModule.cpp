@@ -2795,6 +2795,13 @@ void CodeGenModule::setNonAliasAttributes(GlobalDecl GD,
         GV->addAttribute("rodata-section", SA->getName());
       if (auto *SA = D->getAttr<PragmaClangRelroSectionAttr>())
         GV->addAttribute("relro-section", SA->getName());
+
+      if (auto *SA = D->getAttr<PragmaMSBSSSectionAttr>())
+        GV->addAttribute("bss-section", SA->getName());
+      if (auto *SA = D->getAttr<PragmaMSDataSectionAttr>())
+        GV->addAttribute("data-section", SA->getName());
+      if (auto *SA = D->getAttr<PragmaMSConstSectionAttr>())
+        GV->addAttribute("rodata-section", SA->getName());
     }
 
     if (auto *F = dyn_cast<llvm::Function>(GO)) {
@@ -5692,11 +5699,9 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D,
                    D->getType().isConstantStorage(getContext(), true, true)));
 
   // If it is in a read-only section, mark it 'constant'.
-  if (const SectionAttr *SA = D->getAttr<SectionAttr>()) {
-    const ASTContext::SectionInfo &SI = Context.SectionInfos[SA->getName()];
-    if ((SI.SectionFlags & ASTContext::PSF_Write) == 0)
+  if (const SectionFlagsAttr *SFA = D->getAttr<SectionFlagsAttr>())
+    if ((SFA->getFlags() & ASTContext::PSF_Write) == 0)
       GV->setConstant(true);
-  }
 
   CharUnits AlignVal = getContext().getDeclAlign(D);
   // Check for alignment specifed in an 'omp allocate' directive.

@@ -89,9 +89,10 @@ static bool isSuitableForBSS(const GlobalVariable *GV) {
   if (GV->isConstant())
     return false;
 
-  // If the global has an explicit section specified, don't put it in BSS.
+  // If the global has an explicit section specified, still consider it BSS so
+  // section flags remain consistent
   if (GV->hasSection())
-    return false;
+    return true;
 
   // Otherwise, put it in BSS!
   return true;
