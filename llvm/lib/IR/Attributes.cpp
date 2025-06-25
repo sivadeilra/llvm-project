@@ -2465,6 +2465,44 @@ static bool checkStrictFP(const Function &Caller, const Function &Callee) {
          Caller.getAttributes().hasFnAttr(Attribute::StrictFP);
 }
 
+static bool checkSections(const Function &Caller, const Function &Callee) {
+  // Implement MSVC compatible cross-section inlining rules
+  StringRef CallerSection = Caller.getSection();
+  StringRef CalleeSection = Callee.getSection();
+
+  // sections match, inline ok
+  if (!CallerSection.compare(CalleeSection))
+    return true;
+
+  bool isCallerPaged = CallerSection.starts_with("PAGE");
+  bool isCalleePaged = CalleeSection.starts_with("PAGE");
+
+  // Prevent inlining of non-paged code into a paged caller
+  // Prevent inlining of paged code into non-paged caller
+  // Section names are compared only before the '$' separator if present
+
+  if (isCallerPaged) {
+    size_t CallerComparable = CallerSection.size();
+    size_t CalleeComparable = CalleeSection.size();
+    size_t CallerSep = CallerSection.find('$');
+    size_t CalleeSep = CalleeSection.find('$');
+
+    if (CallerSep != StringRef::npos)
+      CallerComparable = CallerSep;
+    if (CalleeSep != StringRef::npos)
+      CalleeComparable = CalleeSep;
+    if (CallerComparable != CalleeComparable)
+      return false;
+
+    StringRef CallerComparableSection = CallerSection.substr(0, CallerComparable);
+    StringRef CalleeComparableSection = CalleeSection.substr(0, CallerComparable);
+    return !CallerComparableSection.compare(CalleeComparableSection);
+  } else if (isCalleePaged)
+    return false;
+
+  return true;
+}
+
 template<typename AttrClass>
 static bool isEqual(const Function &Caller, const Function &Callee) {
   return Caller.getFnAttribute(AttrClass::getKind()) ==
