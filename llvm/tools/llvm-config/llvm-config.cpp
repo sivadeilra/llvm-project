@@ -304,7 +304,7 @@ int main(int argc, char **argv) {
   // bin dir).
   sys::fs::make_absolute(CurrentPath);
   CurrentExecPrefix =
-      sys::path::parent_path(sys::path::parent_path(CurrentPath)).str();
+      sys::path::parent_path(sys::path::parent_path(sys::path::parent_path(CurrentPath))).str();
 
   // Check to see if we are inside a development tree by comparing to possible
   // locations (prefix style or CMake style).
