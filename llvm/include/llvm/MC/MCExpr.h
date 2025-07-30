@@ -196,6 +196,7 @@ public:
   // a cleaner approach.
   enum VariantKind : uint16_t {
     VK_COFF_IMGREL32 = 3, // symbol@imgrel (image-relative)
+    VK_COFF_DYNFIXUP, // Absolute relocation for external tooling
 
     FirstTargetSpecifier,
   };
