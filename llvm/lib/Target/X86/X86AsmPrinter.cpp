@@ -1104,6 +1104,21 @@ void X86AsmPrinter::emitEndOfAsmFile(Module &M) {
   }
 }
 
+const MCExpr *X86AsmPrinter::lowerConstant(const Constant *CV,
+                                      const Constant *BaseCV,
+                                      uint64_t Offset) {
+  if (const GlobalValue *GV = dyn_cast<GlobalValue>(CV)) {
+    // Check for dynamic fixup in the constant pool and propagate to the symbol
+    // reference
+    if (const auto *GVar = dyn_cast<llvm::GlobalVariable>(GV)) {
+        if (GVar->hasAttribute("msvc_dynfixup"))
+          return MCSymbolRefExpr::create(getSymbol(GV), MCSymbolRefExpr::VK_COFF_DYNFIXUP, OutContext);
+    }
+  }
+
+  return AsmPrinter::lowerConstant(CV, BaseCV, Offset);
+}
+
 char X86AsmPrinter::ID = 0;
 
 INITIALIZE_PASS(X86AsmPrinter, "x86-asm-printer", "X86 Assembly Printer", false,

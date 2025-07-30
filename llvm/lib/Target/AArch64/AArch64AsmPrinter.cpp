@@ -3563,6 +3563,15 @@ const MCExpr *AArch64AsmPrinter::lowerConstant(const Constant *CV,
                                                const Constant *BaseCV,
                                                uint64_t Offset) {
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(CV)) {
+
+    // Check for dynamic fixup in the constant pool and propagate to the symbol
+    // reference
+    if (const auto *GVar = dyn_cast<llvm::GlobalVariable>(GV)) {
+        if (GVar->hasAttribute("msvc_dynfixup"))
+          return MCSymbolRefExpr::create(MCInstLowering.GetGlobalValueSymbol(GV, 0),
+                                         MCSymbolRefExpr::VK_COFF_DYNFIXUP,
+                                         OutContext);
+    }
     return MCSymbolRefExpr::create(MCInstLowering.GetGlobalValueSymbol(GV, 0),
                                    OutContext);
   }

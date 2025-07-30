@@ -5255,3 +5255,10 @@ def NonString : InheritableAttr {
   let Subjects = SubjectList<[Var, Field]>;
   let Documentation = [NonStringDocs];
 }
+
+def DynamicFixup : InheritableAttr {
+  let Spellings = [Declspec<"dynfixup">];
+  let Subjects = SubjectList<[ExternalGlobalVar]>;
+  let LangOpts = [MicrosoftExt];
+  let Documentation = [Undocumented];
+}

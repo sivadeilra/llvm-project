@@ -33,6 +33,7 @@ static cl::opt<AsmWriterVariantTy> AsmWriterVariant(
 
 const MCAsmInfo::AtSpecifier COFFAtSpecifiers[] = {
     {MCSymbolRefExpr::VK_COFF_IMGREL32, "IMGREL"},
+    {MCSymbolRefExpr::VK_COFF_DYNFIXUP, "DYNFIXUP"},
     {AArch64::S_MACHO_PAGEOFF, "PAGEOFF"},
 };
 
