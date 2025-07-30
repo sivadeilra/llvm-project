@@ -2192,9 +2192,9 @@ _mm_storer_ps(float *__p, __m128 __a)
 
 #define _MM_HINT_ET0 7
 #define _MM_HINT_ET1 6
-#define _MM_HINT_T0  3
+#define _MM_HINT_T0  1
 #define _MM_HINT_T1  2
-#define _MM_HINT_T2  1
+#define _MM_HINT_T2  3
 #define _MM_HINT_NTA 0
 
 #ifndef _MSC_VER
