@@ -10472,12 +10472,12 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
         PragmaClangTextSection.PragmaLocation));
 
   // Apply an implicit SectionAttr if #pragma code_seg is active.
-  if (CodeSegStack.CurrentValue && D.isFunctionDefinition() &&
+  if (CodeSegStack.hasValue() && D.isFunctionDefinition() &&
       !NewFD->hasAttr<SectionAttr>()) {
     NewFD->addAttr(SectionAttr::CreateImplicit(
-        Context, CodeSegStack.CurrentValue->getString(),
+        Context, CodeSegStack.CurrentValue,
         CodeSegStack.CurrentPragmaLocation, SectionAttr::Declspec_allocate));
-    if (UnifySection(CodeSegStack.CurrentValue->getString(),
+    if (UnifySection(CodeSegStack.CurrentValue,
                      ASTContext::PSF_Implicit | ASTContext::PSF_Execute |
                          ASTContext::PSF_Read,
                      NewFD))
@@ -11100,7 +11100,7 @@ static Attr *getImplicitCodeSegAttrFromClass(Sema &S, const FunctionDecl *FD) {
 
   // The Microsoft compiler won't check outer classes for the CodeSeg
   // when the #pragma code_seg stack is active.
-  if (S.CodeSegStack.CurrentValue)
+  if (S.CodeSegStack.hasValue())
    return nullptr;
 
   while ((Parent = dyn_cast<CXXRecordDecl>(Parent->getParent()))) {
@@ -11118,9 +11118,9 @@ Attr *Sema::getImplicitCodeSegOrSectionAttrForFunction(const FunctionDecl *FD,
   if (Attr *A = getImplicitCodeSegAttrFromClass(*this, FD))
     return A;
   if (!FD->hasAttr<SectionAttr>() && IsDefinition &&
-      CodeSegStack.CurrentValue)
+      CodeSegStack.hasValue())
     return SectionAttr::CreateImplicit(
-        getASTContext(), CodeSegStack.CurrentValue->getString(),
+        getASTContext(), CodeSegStack.CurrentValue,
         CodeSegStack.CurrentPragmaLocation, SectionAttr::Declspec_allocate);
   return nullptr;
 }
@@ -14792,10 +14792,8 @@ void Sema::CheckCompleteVariableDeclaration(VarDecl *var) {
   // Apply section attributes and pragmas to global variables.
   if (GlobalStorage && var->isThisDeclarationADefinition() &&
       !inTemplateInstantiation()) {
-    PragmaStack<StringLiteral *> *Stack = nullptr;
+    PragmaStack<std::string> *Stack = nullptr;
     int SectionFlags = ASTContext::PSF_Read;
-    bool MSVCEnv =
-        Context.getTargetInfo().getTriple().isWindowsMSVCEnvironment();
     std::optional<QualType::NonConstantStorageReason> Reason;
     if (HasConstInit &&
         !(Reason = var->getType().isNonConstantStorage(Context, true, false))) {
@@ -14808,9 +14806,12 @@ void Sema::CheckCompleteVariableDeclaration(VarDecl *var) {
       if (SA->getSyntax() == AttributeCommonInfo::AS_Declspec)
         SectionFlags |= ASTContext::PSF_Implicit;
       UnifySection(SA->getName(), SectionFlags, var);
-    } else if (Stack->CurrentValue) {
+    }
+#if 0
+    else if (Stack->hasValue()) {
+      bool MSVCEnv =
+          Context.getTargetInfo().getTriple().isWindowsMSVCEnvironment();
       if (Stack != &ConstSegStack && MSVCEnv &&
-          ConstSegStack.CurrentValue != ConstSegStack.DefaultValue &&
           var->getType().isConstQualified()) {
         assert((!Reason || Reason != QualType::NonConstantStorageReason::
                                          NonConstNonReferenceType) &&
@@ -14821,19 +14822,19 @@ void Sema::CheckCompleteVariableDeclaration(VarDecl *var) {
             : *Reason);
       }
       SectionFlags |= ASTContext::PSF_Implicit;
-      auto SectionName = Stack->CurrentValue->getString();
+      auto SectionName = Stack->CurrentValue;
       var->addAttr(SectionAttr::CreateImplicit(Context, SectionName,
                                                Stack->CurrentPragmaLocation,
                                                SectionAttr::Declspec_allocate));
       if (UnifySection(SectionName, SectionFlags, var))
         var->dropAttr<SectionAttr>();
     }
-
+#endif
     // Apply the init_seg attribute if this has an initializer.  If the
     // initializer turns out to not be dynamic, we'll end up ignoring this
     // attribute.
-    if (CurInitSeg && var->getInit())
-      var->addAttr(InitSegAttr::CreateImplicit(Context, CurInitSeg->getString(),
+    if (!CurInitSeg.empty() && var->getInit())
+      var->addAttr(InitSegAttr::CreateImplicit(Context, CurInitSeg,
                                                CurInitSegLoc));
   }
 
@@ -14947,6 +14948,19 @@ void Sema::FinalizeDeclaration(Decl *ThisDecl) {
       VD->addAttr(PragmaClangRelroSectionAttr::CreateImplicit(
           Context, PragmaClangRelroSection.SectionName,
           PragmaClangRelroSection.PragmaLocation));
+
+    if (BSSSegStack.hasValue())
+      VD->addAttr(PragmaMSBSSSectionAttr::CreateImplicit(
+          Context, BSSSegStack.CurrentValue,
+          BSSSegStack.CurrentPragmaLocation));
+    if (DataSegStack.hasValue())
+      VD->addAttr(PragmaMSDataSectionAttr::CreateImplicit(
+          Context, DataSegStack.CurrentValue,
+          DataSegStack.CurrentPragmaLocation));
+    if (ConstSegStack.hasValue())
+      VD->addAttr(PragmaMSConstSectionAttr::CreateImplicit(
+          Context, ConstSegStack.CurrentValue,
+          ConstSegStack.CurrentPragmaLocation));
   }
 
   if (auto *DD = dyn_cast<DecompositionDecl>(ThisDecl)) {

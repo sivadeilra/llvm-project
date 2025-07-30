@@ -1186,6 +1186,7 @@ def warn_cxx_ms_struct :
 def err_pragma_pack_identifer_not_supported : Error<
   "specifying an identifier within `#pragma pack` is not supported on this target">;
 def err_section_conflict : Error<"%0 causes a section type conflict with %1">;
+def err_section_unknown : Error<"%0 assigned to unknown section %1">;
 def warn_section_msvc_compat : Warning<"`#pragma const_seg` for section %1 will"
   " not apply to %0 due to the presence of a %select{mutable field||non-trivial constructor|non-trivial destructor}2">,
   InGroup<IncompatibleMSPragmaSection>;
