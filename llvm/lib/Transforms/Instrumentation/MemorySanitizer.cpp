@@ -124,9 +124,9 @@
 ///      __msan_metadata_ptr_for_store_n(ptr, size);
 ///    Note that the sanitizer code has to deal with how shadow/origin pairs
 ///    returned by the these functions are represented in different ABIs. In
-///    the X86_64 ABI they are returned in RDX:RAX, in PowerPC64 they are
-///    returned in r3 and r4, and in the SystemZ ABI they are written to memory
-///    pointed to by a hidden parameter.
+///    the SystemV X86_64 ABI they are returned in RDX:RAX, in the SystemZ and
+///    Windows x64 ABIs they are written to memory pointed to by a hidden
+///    parameter, and in PowerPC64 they are returned in r3 and r4.
 ///  - TLS variables are stored in a single per-task struct. A call to a
 ///    function __msan_get_context_state() returning a pointer to that struct
 ///    is inserted into every instrumented function before the entry block;
@@ -822,8 +822,11 @@ template <typename... ArgsTy>
 FunctionCallee
 MemorySanitizer::getOrInsertMsanMetadataFunction(Module &M, StringRef Name,
                                                  ArgsTy... Args) {
-  if (TargetTriple.getArch() == Triple::systemz) {
-    // SystemZ ABI: shadow/origin pair is returned via a hidden parameter.
+  if (TargetTriple.getArch() == Triple::systemz ||
+      (TargetTriple.getOS() == Triple::Win32 &&
+       TargetTriple.getArch() == Triple::x86_64)) {
+    // SystemZ & Windows x64 ABIs: shadow/origin pair is returned via a hidden
+    // parameter.
     return M.getOrInsertFunction(Name, Type::getVoidTy(*C), PtrTy,
                                  std::forward<ArgsTy>(Args)...);
   }
@@ -1590,7 +1593,9 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
     MS.RetvalOriginTLS =
         IRB.CreateGEP(MS.MsanContextStateTy, ContextState,
                       {Zero, IRB.getInt32(6)}, "retval_origin");
-    if (MS.TargetTriple.getArch() == Triple::systemz)
+    if (MS.TargetTriple.getArch() == Triple::systemz ||
+        (MS.TargetTriple.getOS() == Triple::Win32 &&
+         MS.TargetTriple.getArch() == Triple::x86_64))
       MS.MsanMetadataAlloca = IRB.CreateAlloca(MS.MsanMetadata, 0u);
   }
 
@@ -1841,7 +1846,9 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
   template <typename... ArgsTy>
   Value *createMetadataCall(IRBuilder<> &IRB, FunctionCallee Callee,
                             ArgsTy... Args) {
-    if (MS.TargetTriple.getArch() == Triple::systemz) {
+    if (MS.TargetTriple.getArch() == Triple::systemz ||
+        (MS.TargetTriple.getOS() == Triple::Win32 &&
+         MS.TargetTriple.getArch() == Triple::x86_64)) {
       IRB.CreateCall(Callee,
                      {MS.MsanMetadataAlloca, std::forward<ArgsTy>(Args)...});
       return IRB.CreateLoad(MS.MsanMetadata, MS.MsanMetadataAlloca);
