@@ -924,7 +924,12 @@ public:
                                ? ClInsertVersionCheck
                                : InsertVersionCheck),
         Recover(ClRecover.getNumOccurrences() > 0 ? ClRecover : Recover),
-        UseGlobalsGC(UseGlobalsGC && ClUseGlobalsGC && !this->CompileKernel),
+        // Ignore CompileKernel on COFF binaries -- use GlobalsGC regardless
+        // of whether this is a kernel binary. Needed for KASAN on Windows,
+        // that requires the global metadata to be put in the .ASAN$GL section.
+        UseGlobalsGC(UseGlobalsGC && ClUseGlobalsGC &&
+                            (M.getTargetTriple().isOSBinFormatCOFF() ||
+                             !this->CompileKernel)),
         // Enable aliases as they should have no downside with ODR indicators.
         UsePrivateAlias(ClUsePrivateAlias.getNumOccurrences() > 0
                             ? ClUsePrivateAlias
