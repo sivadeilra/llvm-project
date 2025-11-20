@@ -647,6 +647,12 @@ __ldar64(unsigned __int64 volatile * _Target) {
 }
 
 static __inline__ void __DEFAULT_FN_ATTRS
+__stlr32(unsigned __int32 volatile * _Target, unsigned __int32 _Value)
+{
+   __c11_atomic_store((_Atomic unsigned __int32 *) _Target, _Value, 3);
+}
+
+static __inline__ void __DEFAULT_FN_ATTRS
 __stlr64(unsigned __int64 volatile * _Target, unsigned __int64 _Value)
 {
    __c11_atomic_store((_Atomic unsigned __int64 *) _Target, _Value, 3);
