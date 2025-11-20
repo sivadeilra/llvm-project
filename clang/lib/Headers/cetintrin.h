@@ -80,7 +80,7 @@ static __inline__ void __DEFAULT_FN_ATTRS _rstorssp(void * __p) {
 
 static __inline__ void * __DEFAULT_FN_ATTRS _switchssp(void *__local_stack) {
     void * prev_stack;
-    prev_stack = (void *) _rdsspq();
+    prev_stack = (void *) ((_rdsspq() & ~7) - 8);
     __builtin_ia32_rstorssp(__local_stack);
     __builtin_ia32_saveprevssp();
     return prev_stack;
