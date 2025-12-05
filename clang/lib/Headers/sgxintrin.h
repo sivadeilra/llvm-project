@@ -24,7 +24,7 @@ static __inline unsigned int __DEFAULT_FN_ATTRS
 _enclu_u32(unsigned int __leaf, __SIZE_TYPE__ __d[])
 {
   unsigned int __result;
-  __asm__ ("enclu"
+  __asm__ __volatile__ ("enclu"
            : "=a" (__result), "=b" (__d[0]), "=c" (__d[1]), "=d" (__d[2])
            : "a" (__leaf), "b" (__d[0]), "c" (__d[1]), "d" (__d[2])
            : "cc");
@@ -35,7 +35,7 @@ static __inline unsigned int __DEFAULT_FN_ATTRS
 _encls_u32(unsigned int __leaf, __SIZE_TYPE__ __d[])
 {
   unsigned int __result;
-  __asm__ ("encls"
+  __asm__ __volatile__ ("encls"
            : "=a" (__result), "=b" (__d[0]), "=c" (__d[1]), "=d" (__d[2])
            : "a" (__leaf), "b" (__d[0]), "c" (__d[1]), "d" (__d[2])
            : "cc");
@@ -46,7 +46,7 @@ static __inline unsigned int __DEFAULT_FN_ATTRS
 _enclv_u32(unsigned int __leaf, __SIZE_TYPE__ __d[])
 {
   unsigned int __result;
-  __asm__ ("enclv"
+  __asm__ __volatile__ ("enclv"
            : "=a" (__result), "=b" (__d[0]), "=c" (__d[1]), "=d" (__d[2])
            : "a" (__leaf), "b" (__d[0]), "c" (__d[1]), "d" (__d[2])
            : "cc");

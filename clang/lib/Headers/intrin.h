@@ -683,7 +683,7 @@ __readmsr(unsigned long __register) {
   // undefined.
   unsigned long __edx;
   unsigned long __eax;
-  __asm__ ("rdmsr" : "=d"(__edx), "=a"(__eax) : "c"(__register));
+  __asm__ __volatile__ ("rdmsr" : "=d"(__edx), "=a"(__eax) : "c"(__register));
   return (((unsigned __int64)__edx) << 32) | (unsigned __int64)__eax;
 }
 
