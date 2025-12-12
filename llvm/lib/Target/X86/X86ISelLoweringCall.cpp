@@ -2575,8 +2575,8 @@ X86TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     // should be computed from returns not tail calls.  Consider a void
     // function making a tail call to a function returning int.
     MF.getFrameInfo().setHasTailCall();
-    auto Opcode =
-        IsCFGuardCall ? X86ISD::TC_RETURN_GLOBALADDR : X86ISD::TC_RETURN;
+    auto Opcode = (IsCFGuardCall || IsImpCall) ? X86ISD::TC_RETURN_GLOBALADDR
+                                               : X86ISD::TC_RETURN;
     SDValue Ret = DAG.getNode(Opcode, dl, MVT::Other, Ops);
 
     if (IsCFICall)
@@ -2589,11 +2589,9 @@ X86TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
   // Returns a chain & a glue for retval copy to use.
   SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Glue);
-  if (IsImpCall) {
-    Chain = DAG.getNode(X86ISD::IMP_CALL, dl, NodeTys, Ops);
-  } else if (IsNoTrackIndirectCall) {
+  if (IsNoTrackIndirectCall) {
     Chain = DAG.getNode(X86ISD::NT_CALL, dl, NodeTys, Ops);
-  } else if (IsCFGuardCall) {
+  } else if (IsCFGuardCall || IsImpCall) {
     Chain = DAG.getNode(X86ISD::CALL_GLOBALADDR, dl, NodeTys, Ops);
   } else if (CLI.CB && objcarc::hasAttachedCallOpBundle(CLI.CB)) {
     // Calls with a "clang.arc.attachedcall" bundle are special. They should be

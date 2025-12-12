@@ -331,7 +331,7 @@ let isCall = 1, Uses = [RSP, SSP], SchedRW = [WriteJump] in {
   def CALL64m       : I<0xFF, MRM2m, (outs), (ins i64mem:$dst),
                         "call{q}\t{*}$dst", [(X86call (loadi64 addr:$dst))]>,
                       Requires<[In64BitMode,FavorMemIndirectCall,
-                                NotUseIndirectThunkCalls]>;
+                                NotUseIndirectThunkCalls,ImportCallOptimizationDisabled]>;
 
   // Non-tracking calls for IBT, use with caution.
   let isCodeGenOnly = 1 in {
