@@ -322,6 +322,11 @@ FunctionPass *llvm::createCFGuardDispatchPass() {
   return new CFGuard(CFGuardPass::Mechanism::Dispatch);
 }
 
+bool llvm::isCFGuardCall(const CallBase *CB) {
+  return CB->getCallingConv() == CallingConv::CFGuard_Check ||
+         CB->countOperandBundlesOfType(LLVMContext::OB_cfguardtarget);
+}
+
 bool llvm::isCFGuardFunction(const GlobalValue *GV) {
   if (GV->getLinkage() != GlobalValue::ExternalLinkage)
     return false;

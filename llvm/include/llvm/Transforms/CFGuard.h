@@ -15,6 +15,7 @@
 
 namespace llvm {
 
+class CallBase;
 class FunctionPass;
 class GlobalValue;
 
@@ -35,6 +36,7 @@ FunctionPass *createCFGuardCheckPass();
 /// Insert Control FLow Guard dispatches on indirect function calls.
 FunctionPass *createCFGuardDispatchPass();
 
+bool isCFGuardCall(const CallBase *CB);
 bool isCFGuardFunction(const GlobalValue *GV);
 
 } // namespace llvm

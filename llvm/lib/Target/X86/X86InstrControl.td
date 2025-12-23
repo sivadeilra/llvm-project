@@ -366,6 +366,11 @@ let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1,
                                (ins i64mem_TC:$dst, i32imm:$offset),
                                []>, Sched<[WriteJumpLd]>;
 
+  let isPseudo = 1, mayLoad = 1 in
+  def TCRETURNmi64_GlobalAddr   : PseudoI<(outs),
+                               (ins i64imm:$dst, i32imm:$offset),
+                               [(X86tcret_globaladdr tglobaladdr:$dst, timm:$offset)]>, Sched<[WriteJumpLd]>;
+
   def TAILJMPd64 : PseudoI<(outs), (ins i64i32imm_brtarget:$dst),
                            []>, Sched<[WriteJump]>;
 
@@ -426,6 +431,10 @@ let isPseudo = 1, isCall = 1, isCodeGenOnly = 1,
   def CALL64r_ImpCall :
     PseudoI<(outs), (ins GR64_A:$dst), [(X86call GR64_A:$dst)]>,
             Requires<[In64BitMode,NotUseIndirectThunkCalls,ImportCallOptimizationEnabled]>;
+
+  def CALL64m_GlobalAddress :
+    PseudoI<(outs), (ins i64imm:$dst), [(X86call_globaladdr tglobaladdr:$dst)]>,
+             Requires<[In64BitMode]>;
 }
 
 // Conditional tail calls are similar to the above, but they are branches
