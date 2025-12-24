@@ -64,10 +64,10 @@ def int_aarch64_frint64x
 def int_aarch64_hint : DefaultAttrsIntrinsic<[], [llvm_i32_ty]>;
 
 def int_aarch64_break : Intrinsic<[], [llvm_i32_ty],
-    [IntrNoMem, IntrHasSideEffects, IntrNoReturn, IntrCold, ImmArg<ArgIndex<0>>]>;
+    [IntrNoMem, IntrNoMerge, IntrHasSideEffects, IntrCold, ImmArg<ArgIndex<0>>]>;
 
 def int_aarch64_hlt : Intrinsic<[], [llvm_i32_ty],
-    [IntrNoMem, IntrHasSideEffects, IntrNoReturn, IntrCold, ImmArg<ArgIndex<0>>]>;
+    [IntrNoMem, IntrNoMerge, IntrHasSideEffects, IntrCold, ImmArg<ArgIndex<0>>]>;
 
 def int_aarch64_prefetch : Intrinsic<[],
     [llvm_ptr_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
