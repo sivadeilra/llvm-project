@@ -638,24 +638,24 @@ _enable(void)
 
 static __inline__ unsigned __int32 __DEFAULT_FN_ATTRS
 __ldar32(unsigned __int32 volatile * _Target) {
-    return (unsigned __int32) __c11_atomic_load((_Atomic unsigned __int32 *) _Target, 2);
+    return (unsigned __int32) __c11_atomic_load((_Atomic unsigned __int32 *) _Target, __ATOMIC_SEQ_CST);
 }
 
 static __inline__ unsigned __int64 __DEFAULT_FN_ATTRS
 __ldar64(unsigned __int64 volatile * _Target) {
-    return __c11_atomic_load((_Atomic unsigned __int64 *) _Target, 2);
+    return __c11_atomic_load((_Atomic unsigned __int64 *) _Target, __ATOMIC_SEQ_CST);
 }
 
 static __inline__ void __DEFAULT_FN_ATTRS
 __stlr32(unsigned __int32 volatile * _Target, unsigned __int32 _Value)
 {
-   __c11_atomic_store((_Atomic unsigned __int32 *) _Target, _Value, 3);
+   __c11_atomic_store((_Atomic unsigned __int32 *) _Target, _Value, __ATOMIC_SEQ_CST);
 }
 
 static __inline__ void __DEFAULT_FN_ATTRS
 __stlr64(unsigned __int64 volatile * _Target, unsigned __int64 _Value)
 {
-   __c11_atomic_store((_Atomic unsigned __int64 *) _Target, _Value, 3);
+   __c11_atomic_store((_Atomic unsigned __int64 *) _Target, _Value, __ATOMIC_SEQ_CST);
 }
 
 static __inline__ void * __DEFAULT_FN_ATTRS
