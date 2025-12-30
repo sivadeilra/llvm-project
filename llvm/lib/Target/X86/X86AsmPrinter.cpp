@@ -478,8 +478,7 @@ static bool isIndirectBranchOrTailCall(const MachineInstr &MI) {
          Opc == X86::TAILJMPr64 || Opc == X86::TAILJMPm64 ||
          Opc == X86::TCRETURNri || Opc == X86::TCRETURNmi ||
          Opc == X86::TCRETURNri64 || Opc == X86::TCRETURNmi64 ||
-         Opc == X86::TCRETURNri64_ImpCall || Opc == X86::TAILJMPr64_REX ||
-         Opc == X86::TAILJMPm64_REX ||
+         Opc == X86::TAILJMPr64_REX || Opc == X86::TAILJMPm64_REX ||
          Opc == X86::TCRETURNmi64_GlobalAddr;
 }
 

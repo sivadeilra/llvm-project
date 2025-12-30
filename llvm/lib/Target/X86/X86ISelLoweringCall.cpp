@@ -2471,6 +2471,12 @@ X86TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
            "CFG Function load should not have an offset");
     Callee = DAG.getTargetGlobalAddress(
         GA->getGlobal(), dl, GA->getValueType(0), 0, X86II::MO_NO_FLAG);
+  } else if (M->getModuleFlag("import-call-optimization")) {
+    // When import call optimization is enabled, all register indirect calls
+    // must use RAX.
+    Chain = DAG.getCopyToReg(Chain, dl, X86::RAX, Callee, InGlue);
+    InGlue = Chain.getValue(1);
+    Callee = DAG.getRegister(X86::RAX, Callee.getValueType());
   }
 
   SmallVector<SDValue, 8> Ops;

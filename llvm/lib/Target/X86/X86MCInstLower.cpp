@@ -2594,8 +2594,7 @@ void X86AsmPrinter::emitInstruction(const MachineInstr *MI) {
       if (MI->getOperand(0).getReg() != X86::RAX)
         reportFatalInternalError(
             "Indirect calls with import call optimization enabled must go "
-            "through RAX (as "
-            "enforced by CALL64r_ImpCall)");
+            "through RAX");
 
       emitLabelAndRecordForImportCallOptimization(
           IMAGE_RETPOLINE_AMD64_INDIR_CALL);

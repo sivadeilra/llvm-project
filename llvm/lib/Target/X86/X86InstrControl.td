@@ -327,11 +327,11 @@ let isCall = 1, Uses = [RSP, SSP], SchedRW = [WriteJump] in {
                       Requires<[In64BitMode]>;
   def CALL64r       : I<0xFF, MRM2r, (outs), (ins GR64:$dst),
                         "call{q}\t{*}$dst", [(X86call GR64:$dst)]>,
-                      Requires<[In64BitMode,NotUseIndirectThunkCalls,ImportCallOptimizationDisabled]>;
+                      Requires<[In64BitMode,NotUseIndirectThunkCalls]>;
   def CALL64m       : I<0xFF, MRM2m, (outs), (ins i64mem:$dst),
                         "call{q}\t{*}$dst", [(X86call (loadi64 addr:$dst))]>,
                       Requires<[In64BitMode,FavorMemIndirectCall,
-                                NotUseIndirectThunkCalls,ImportCallOptimizationDisabled]>;
+                                NotUseIndirectThunkCalls]>;
 
   // Non-tracking calls for IBT, use with caution.
   let isCodeGenOnly = 1 in {
@@ -356,9 +356,6 @@ let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1,
                                []>, Sched<[WriteJump]>;
   def TCRETURNri64   : PseudoI<(outs),
                                (ins ptr_rc_tailcall:$dst, i32imm:$offset),
-                               []>, Sched<[WriteJump]>;
-  def TCRETURNri64_ImpCall   : PseudoI<(outs),
-                               (ins GR64_A:$dst, i32imm:$offset),
                                []>, Sched<[WriteJump]>;
 
   let mayLoad = 1 in
@@ -427,10 +424,6 @@ let isPseudo = 1, isCall = 1, isCodeGenOnly = 1,
   def CALL64pcrel32_RVMARKER :
     PseudoI<(outs), (ins i64imm:$rvfunc, i64i32imm_brtarget:$dst), []>,
             Requires<[In64BitMode]>;
-
-  def CALL64r_ImpCall :
-    PseudoI<(outs), (ins GR64_A:$dst), [(X86call GR64_A:$dst)]>,
-            Requires<[In64BitMode,NotUseIndirectThunkCalls,ImportCallOptimizationEnabled]>;
 
   def CALL64m_GlobalAddress :
     PseudoI<(outs), (ins i64imm:$dst), [(X86call_globaladdr tglobaladdr:$dst)]>,

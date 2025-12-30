@@ -94,6 +94,37 @@ finish:
 ; ASM-NEXT:     int3
 ; ASM-NEXT:     int3
 
+; Regression test: this particular sequence caused a cycle in DAG scheduling due
+; to the requirement to use RAX for register-indirect calls. We now explicitly
+; copy to RAX which breaks the cycle.
+define dso_local i32 @not_scheduled_repro(ptr %0, ptr %1, ptr %2) local_unnamed_addr {
+  %4 = load i64, ptr %0, align 8
+  %5 = inttoptr i64 %4 to ptr
+  %6 = tail call i64 %5(ptr noundef %1)
+  store i64 %6, ptr %2, align 8
+  ret i32 0
+}
+; ASM-LABEL:  not_scheduled_repro:
+; ASM:          movq    (%rcx), %rax
+; ASM-NEXT:     movq    %rdx, %rcx
+; ASM-NEXT:   .Limpcall8:
+; ASM-NEXT:     callq   *%rax
+; ASM-NEXT:     nopl    (%rax)
+
+define dso_local void @not_scheduled_repro_tc(ptr %0, ptr %1) local_unnamed_addr {
+  %4 = load i64, ptr %0, align 8
+  %5 = inttoptr i64 %4 to ptr
+  tail call void %5(ptr noundef %1)
+  ret void
+}
+; ASM-LABEL:  not_scheduled_repro_tc:
+; ASM:          movq    (%rcx), %rax
+; ASM-NEXT:     movq    %rdx, %rcx
+; ASM-NEXT:   .Limpcall9:
+; ASM-NEXT:     rex64 jmpq      *%rax
+; ASM-NEXT:     int3
+; ASM-NEXT:     int3
+
 declare dllimport void @a() local_unnamed_addr
 declare dllimport void @b() local_unnamed_addr
 
@@ -107,10 +138,6 @@ declare dllimport void @b() local_unnamed_addr
 ; ASM-NEXT   .secoffset      .Limpcall5
 ; ASM-NEXT   .long   6
 ; ASM-NEXT   .secoffset      .Limpcall6
-; ASM-NEXT   .long   16
-; ASM-NEXT   .secnum .text
-; ASM-NEXT   .long   2
-; ASM-NEXT   .secoffset      .Limpcall7
 ; ASM-NEXT   .long   40
 ; ASM-NEXT   .secnum nc_sect
 ; ASM-NEXT   .long   3
@@ -121,6 +148,14 @@ declare dllimport void @b() local_unnamed_addr
 ; ASM-NEXT   .secoffset      .Limpcall2
 ; ASM-NEXT   .long   5
 ; ASM-NEXT   .secoffset      .Limpcall3
+; ASM-NEXT   .long   32
+; ASM-NEXT   .secnum .text
+; ASM-NEXT   .long   2
+; ASM-NEXT   .secoffset      .Limpcall7
+; ASM-NEXT   .long   5
+; ASM-NEXT   .secoffset      .Limpcall8
+; ASM-NEXT   .long   6
+; ASM-NEXT   .secoffset      .Limpcall9
 
 ; The loader assumes an exact sequence of instructions/bytes at each marked site since it may
 ; replace the instruction(s) with new instruction(s), and the MSVC linker validates these at link
