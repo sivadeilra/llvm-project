@@ -297,6 +297,13 @@ static bool globalVariableNeedsRedirect(GlobalVariable *GV) {
   if (GV->hasAttribute("allow_direct_access_in_hot_patch_function"))
     return false;
 
+  // If a global variable is declared with __declspec(dynfixup) then we do
+  // not want to redirect the variable. dynfixup already handles redirecting
+  // the variable through a different mechanism.
+  if (GV->hasAttribute("msvc_dynfixup")) {
+    return false;
+  }
+
   // If the global variable is not a constant, then we want to redirect it.
   if (!GV->isConstant()) {
     if (GV->getName().starts_with("??_R")) {
