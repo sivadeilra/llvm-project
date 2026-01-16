@@ -1358,6 +1358,10 @@ def : Pat<(X86tcret_6regs (load addr:$dst), timm:$off),
           (TCRETURNmi64 addr:$dst, timm:$off)>,
           Requires<[In64BitMode, NotUseIndirectThunkCalls]>;
 
+def : Pat<(X86tcret_globaladdr tglobaladdr:$dst, timm:$off),
+          (TCRETURNmi64 RIP, 1, zero_reg, tglobaladdr:$dst, zero_reg, timm:$off)>,
+          Requires<[In64BitMode]>;
+
 def : Pat<(X86tcret ptr_rc_tailcall:$dst, timm:$off),
           (INDIRECT_THUNK_TCRETURN64 ptr_rc_tailcall:$dst, timm:$off)>,
           Requires<[In64BitMode, UseIndirectThunkCalls]>;
@@ -1381,6 +1385,9 @@ def : Pat<(X86call (i32 texternalsym:$dst)),
           (CALLpcrel32 texternalsym:$dst)>;
 def : Pat<(X86call (i32 imm:$dst)),
           (CALLpcrel32 imm:$dst)>, Requires<[CallImmAddr]>;
+
+def : Pat<(X86call_globaladdr tglobaladdr:$dst),
+          (CALL64m RIP, 1, zero_reg, tglobaladdr:$dst, zero_reg)>;
 
 // Comparisons.
 
