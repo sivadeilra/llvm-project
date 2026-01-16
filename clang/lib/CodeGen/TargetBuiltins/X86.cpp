@@ -3072,11 +3072,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     llvm::FunctionType *FTy = llvm::FunctionType::get(VoidTy, false);
     llvm::InlineAsm *IA =
         llvm::InlineAsm::get(FTy, "int $$0x2c", "", /*hasSideEffects=*/true);
-    llvm::AttributeList NoReturnAttr = llvm::AttributeList::get(
-        getLLVMContext(), llvm::AttributeList::FunctionIndex,
-        llvm::Attribute::NoReturn);
     llvm::CallInst *CI = Builder.CreateCall(IA);
-    CI->setAttributes(NoReturnAttr);
     return CI;
   }
   case X86::BI__readfsbyte:
