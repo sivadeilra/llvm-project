@@ -3692,6 +3692,7 @@ bool X86InstrInfo::isUnconditionalTailCall(const MachineInstr &MI) const {
   case X86::TCRETURNdi64:
   case X86::TCRETURNri64:
   case X86::TCRETURNmi64:
+  case X86::TCRETURNmi64_GlobalAddr:
     return true;
   default:
     return false;

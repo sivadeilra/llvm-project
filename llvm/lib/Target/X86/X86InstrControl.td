@@ -347,6 +347,11 @@ let isCall = 1, Uses = [RSP, SSP], SchedRW = [WriteJump] in {
   let mayLoad = 1 in
   def FARCALL64m  : RI<0xFF, MRM3m, (outs), (ins opaquemem:$dst),
                        "lcall{q}\t{*}$dst", []>;
+
+  let mayLoad = 1 in
+  def CALL64m_GlobalAddress :
+    PseudoI<(outs), (ins i64imm:$dst), [(X86call_globaladdr tglobaladdr:$dst)]>,
+             Requires<[In64BitMode]>;
 }
 
 let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1,
@@ -362,6 +367,11 @@ let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1,
   def TCRETURNmi64   : PseudoI<(outs),
                                (ins i64mem_TC:$dst, i32imm:$offset),
                                []>, Sched<[WriteJumpLd]>;
+
+  let isPseudo = 1, mayLoad = 1 in
+  def TCRETURNmi64_GlobalAddr   : PseudoI<(outs),
+                               (ins i64imm:$dst, i32imm:$offset),
+                               [(X86tcret_globaladdr tglobaladdr:$dst, timm:$offset)]>, Sched<[WriteJumpLd]>;
 
   def TAILJMPd64 : PseudoI<(outs), (ins i64i32imm_brtarget:$dst),
                            []>, Sched<[WriteJump]>;

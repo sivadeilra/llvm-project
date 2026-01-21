@@ -1000,6 +1000,7 @@ unsigned X86RegisterInfo::findDeadCallerSavedReg(
   case X86::TCRETURNdi64:
   case X86::TCRETURNri64:
   case X86::TCRETURNmi64:
+  case X86::TCRETURNmi64_GlobalAddr:
   case X86::EH_RETURN:
   case X86::EH_RETURN64: {
     SmallSet<uint16_t, 8> Uses;
