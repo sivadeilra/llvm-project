@@ -9388,7 +9388,7 @@ def : Pat<(i32 (trunc GPR64sp:$src)),
           (i32 (EXTRACT_SUBREG GPR64sp:$src, sub_32))>;
 
 // __builtin_trap() uses the BRK instruction on AArch64.
-def : Pat<(trap), (BRK 1)>;
+def : Pat<(trap), (BRK 0xF003)>;
 def : Pat<(debugtrap), (BRK 0xF000)>;
 
 def ubsan_trap_xform : SDNodeXForm<timm, [{
