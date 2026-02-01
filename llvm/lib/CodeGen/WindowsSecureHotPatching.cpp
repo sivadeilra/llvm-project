@@ -372,7 +372,7 @@ static GlobalVariable *getOrCreateRefVariable(
       ConstantExpr::getGetElementPtr(PtrTy, GV, ArrayRef<Value *>{});
 
   GlobalVariable *RefGV =
-      new GlobalVariable(*M, PtrTy, false, GlobalValue::LinkOnceAnyLinkage,
+      new GlobalVariable(*M, PtrTy, false, GlobalValue::ExternalLinkage,
                          AddrOfOldGV, Twine("__ref_").concat(GV->getName()),
                          nullptr, GlobalVariable::NotThreadLocal);
 
@@ -398,6 +398,11 @@ static GlobalVariable *getOrCreateRefVariable(
       /*LineNo*/ 0, DebugType,
       /*IsLocalToUnit*/ false);
   RefGV->addDebugInfo(GVE);
+
+  // Attach a COMDAT and set "select any" semantics.
+  Comdat *CD = M->getOrInsertComdat(GV->getName());
+  CD->setSelectionKind(Comdat::Any);
+  GV->setComdat(CD);
 
   // Store the __ref_* in RefMapping so that future calls use the same RefGV.
   ReplaceWithRefGV = RefGV;
