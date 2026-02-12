@@ -486,6 +486,11 @@ enum TOF {
   /// reference is actually to the ".refptr.FOO" symbol.  This is used for
   /// stub symbols on windows.
   MO_COFFSTUB,
+  /// MO_COFF_DYNFIXUP - On a symbol operand "FOO", this indicates that the
+  /// symbol is a Dynamic Value and has an associated dynamic value fixup.
+  /// In IR, this is represented as a custom "msvc_dynfixup" attribute.
+  /// The fixup will be added to the DVRT by the linker.
+  MO_COFF_DYNFIXUP,
 };
 
 enum : uint64_t {

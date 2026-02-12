@@ -19307,7 +19307,7 @@ SDValue X86TargetLowering::LowerGlobalOrExternal(SDValue Op, SelectionDAG &DAG,
     bool fromConstantPool = false;
     if (const auto *GVar = dyn_cast<llvm::GlobalVariable>(GV)) {
       if (GVar->hasAttribute("msvc_dynfixup")) {
-        fromConstantPool = true;
+        OpFlags = X86II::MO_COFF_DYNFIXUP;
       }
     }
     if (!fromConstantPool) {

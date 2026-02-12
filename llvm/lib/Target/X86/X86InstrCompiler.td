@@ -370,6 +370,16 @@ let AddedComplexity = 1, isReMaterializable = 1, isAsCheapAsAMove = 1,
 def MOV32ri64 : I<0, Pseudo, (outs GR64:$dst), (ins i64i32imm:$src), "",
                   [(set GR64:$dst, i64immZExt32:$src)]>;
 
+// Matches TargetGlobalAddr with the MO_COFF_DYNFIXUP target flag.
+def tglobaladdr_dynfixup : PatLeaf<(tglobaladdr:$addr), [{
+    auto *GA = cast<GlobalAddressSDNode>(N);
+    return GA->getTargetFlags() == X86II::MO_COFF_DYNFIXUP;
+}]>;
+
+// Handle MO_COFF_DYNFIXUP (DVRT)
+def : Pat<(i64 (X86Wrapper tglobaladdr_dynfixup:$dst)),
+          (MOV64ri tglobaladdr:$dst)>;
+
 // This 64-bit pseudo-move can also be used for labels in the x86-64 small code
 // model.
 def mov64imm32 : ComplexPattern<i64, 1, "selectMOV64Imm32", [X86Wrapper]>;

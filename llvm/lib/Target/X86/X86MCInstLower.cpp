@@ -304,6 +304,9 @@ MCOperand X86MCInstLower::LowerSymbolOperand(const MachineOperand &MO,
   case X86II::MO_ABS8:
     Specifier = X86::S_ABS8;
     break;
+  case X86II::MO_COFF_DYNFIXUP:
+    Specifier = MCSymbolRefExpr::VK_COFF_DYNFIXUP;
+    break;
   case X86II::MO_PIC_BASE_OFFSET:
   case X86II::MO_DARWIN_NONLAZY_PIC_BASE:
     Expr = MCSymbolRefExpr::create(Sym, Ctx);

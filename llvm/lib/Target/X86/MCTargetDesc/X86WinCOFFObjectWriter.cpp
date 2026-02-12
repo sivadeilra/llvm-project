@@ -62,6 +62,16 @@ unsigned X86WinCOFFObjectWriter::getRelocType(MCContext &Ctx,
     }
   }
 
+  // If the symbol references something with VK_COFF_DYNFIXUP, then the fixup must be an
+  // absolute 8-byte relocation. This catches ISEL failures to select the right pattern.
+  if (Target.getSpecifier() == MCSymbolRefExpr::VK_COFF_DYNFIXUP) {
+    if (FixupKind != FK_Data_8)
+      Ctx.reportError(Fixup.getLoc(),
+        "Fixups for 'msvc_dynfixup' variables must use 8-byte absolute relocations; "
+        "reaching this path indicates a codegen bug, usually ISEL.");
+    return COFF::IMAGE_REL_AMD64_ABSOLUTE;
+  }
+
   auto Spec = Target.getSpecifier();
   if (Is64Bit) {
     switch (FixupKind) {
@@ -86,8 +96,6 @@ unsigned X86WinCOFFObjectWriter::getRelocType(MCContext &Ctx,
         return COFF::IMAGE_REL_AMD64_SECREL;
       return COFF::IMAGE_REL_AMD64_ADDR32;
     case FK_Data_8:
-      if (Spec == MCSymbolRefExpr::VK_COFF_DYNFIXUP)
-        return COFF::IMAGE_REL_AMD64_ABSOLUTE;
       return COFF::IMAGE_REL_AMD64_ADDR64;
     case FK_SecRel_2:
       return COFF::IMAGE_REL_AMD64_SECTION;

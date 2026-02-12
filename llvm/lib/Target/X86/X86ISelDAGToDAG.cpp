@@ -375,6 +375,15 @@ namespace {
     bool shouldAvoidImmediateInstFormsForSize(SDNode *N) const {
       uint32_t UseCount = 0;
 
+      // Avoid folding dynfixup globals
+      if (N->getOpcode() == X86ISD::Wrapper) {
+        auto N0 = N->getOperand(0);
+        if (N0->getOpcode() == ISD::TargetGlobalAddress)
+          if (auto* G = dyn_cast<GlobalAddressSDNode>(N0))
+            if (G->getTargetFlags() == X86II::MO_COFF_DYNFIXUP)
+              return true;
+      }
+
       // Do not want to hoist if we're not optimizing for size.
       // TODO: We'd like to remove this restriction.
       // See the comment in X86InstrInfo.td for more info.
@@ -1943,6 +1952,12 @@ bool X86DAGToDAGISel::matchWrapper(SDValue N, X86ISelAddressMode &AM) {
   int64_t Offset = 0;
   SDValue N0 = N.getOperand(0);
   if (auto *G = dyn_cast<GlobalAddressSDNode>(N0)) {
+    if (G->getTargetFlags() == X86II::MO_COFF_DYNFIXUP) {
+      // Do not fold (Target)GlobalAddress when MO_COFF_DYNFIXUP is in use, because we need to
+      // generate a MOV64ri for MO_COFF_DYNFIXUP to work and it cannot have any indexing modes,
+      // scaling, etc.
+      return true;
+    }
     AM.GV = G->getGlobal();
     AM.SymbolFlags = G->getTargetFlags();
     Offset = G->getOffset();
@@ -1989,6 +2004,10 @@ bool X86DAGToDAGISel::matchWrapper(SDValue N, X86ISelAddressMode &AM) {
 /// it cannot be done. This just pattern matches for the addressing mode.
 bool X86DAGToDAGISel::matchAddress(SDValue N, X86ISelAddressMode &AM) {
   if (matchAddressRecursively(N, AM, 0))
+    return true;
+
+  // Globals using dynfixup should match a different ISEL pattern.
+  if (AM.SymbolFlags == X86II::MO_COFF_DYNFIXUP)
     return true;
 
   // Post-processing: Make a second attempt to fold a load, if we now know

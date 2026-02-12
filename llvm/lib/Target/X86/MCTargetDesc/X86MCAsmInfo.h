@@ -97,7 +97,6 @@ enum {
   S_TLVPPAGE,
   S_TLVPPAGEOFF,
   S_TPOFF,
-  S_COFF_DYNFIXUP, // Absolute relocation for external tooling
 };
 } // namespace X86
 } // namespace llvm
