@@ -4740,6 +4740,8 @@ static CachedProperties computeCachedProperties(const Type *T) {
     return Cache::get(cast<PointerType>(T)->getPointeeType());
   case Type::BlockPointer:
     return Cache::get(cast<BlockPointerType>(T)->getPointeeType());
+  case Type::TrackedReference:
+    return Cache::get(cast<TrackedReferenceType>(T)->getPointeeType());
   case Type::LValueReference:
   case Type::RValueReference:
     return Cache::get(cast<ReferenceType>(T)->getPointeeType());
@@ -4839,6 +4841,8 @@ LinkageInfo LinkageComputer::computeTypeLinkageInfo(const Type *T) {
     return computeTypeLinkageInfo(cast<PointerType>(T)->getPointeeType());
   case Type::BlockPointer:
     return computeTypeLinkageInfo(cast<BlockPointerType>(T)->getPointeeType());
+  case Type::TrackedReference:
+    return computeTypeLinkageInfo(cast<TrackedReferenceType>(T)->getPointeeType());
   case Type::LValueReference:
   case Type::RValueReference:
     return computeTypeLinkageInfo(cast<ReferenceType>(T)->getPointeeType());
@@ -5050,6 +5054,7 @@ bool Type::canHaveNullability(bool ResultIfUnknown) const {
 
   // Non-pointer types.
   case Type::Complex:
+  case Type::TrackedReference:
   case Type::LValueReference:
   case Type::RValueReference:
   case Type::ConstantArray:

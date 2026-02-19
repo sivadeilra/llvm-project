@@ -6163,6 +6163,10 @@ namespace {
       assert(Chunk.Kind == DeclaratorChunk::BlockPointer);
       TL.setCaretLoc(Chunk.Loc);
     }
+    void VisitTrackedReferenceTypeLoc(TrackedReferenceTypeLoc TL) {
+      assert(Chunk.Kind == DeclaratorChunk::TrackedReference);
+      TL.setSigilLoc(Chunk.Loc);
+    }
     void VisitPointerTypeLoc(PointerTypeLoc TL) {
       assert(Chunk.Kind == DeclaratorChunk::Pointer);
       TL.setStarLoc(Chunk.Loc);

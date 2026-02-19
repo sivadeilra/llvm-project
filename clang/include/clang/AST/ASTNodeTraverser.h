@@ -389,6 +389,9 @@ public:
   void VisitBlockPointerType(const BlockPointerType *T) {
     Visit(T->getPointeeType());
   }
+  void VisitTrackedReferenceType(const TrackedReferenceType *T) {
+    Visit(T->getPointeeType());
+  }
   void VisitReferenceType(const ReferenceType *T) {
     Visit(T->getPointeeType());
   }
