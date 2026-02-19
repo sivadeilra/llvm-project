@@ -995,6 +995,9 @@ DEF_TRAVERSE_TYPE(PointerType, { TRY_TO(TraverseType(T->getPointeeType())); })
 DEF_TRAVERSE_TYPE(BlockPointerType,
                   { TRY_TO(TraverseType(T->getPointeeType())); })
 
+DEF_TRAVERSE_TYPE(TrackedReferenceType,
+                  { TRY_TO(TraverseType(T->getPointeeType())); })
+
 DEF_TRAVERSE_TYPE(LValueReferenceType,
                   { TRY_TO(TraverseType(T->getPointeeType())); })
 
@@ -1268,6 +1271,9 @@ DEF_TRAVERSE_TYPELOC(PointerType,
                      { TRY_TO(TraverseTypeLoc(TL.getPointeeLoc())); })
 
 DEF_TRAVERSE_TYPELOC(BlockPointerType,
+                     { TRY_TO(TraverseTypeLoc(TL.getPointeeLoc())); })
+
+DEF_TRAVERSE_TYPELOC(TrackedReferenceType,
                      { TRY_TO(TraverseTypeLoc(TL.getPointeeLoc())); })
 
 DEF_TRAVERSE_TYPELOC(LValueReferenceType,

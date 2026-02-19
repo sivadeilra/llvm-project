@@ -436,6 +436,21 @@ void TypePrinter::printBlockPointerAfter(const BlockPointerType *T,
   printAfter(T->getPointeeType(), OS);
 }
 
+void TypePrinter::printTrackedReferenceBefore(const TrackedReferenceType *T,
+                                              raw_ostream &OS) {
+  SaveAndRestore NonEmptyPH(HasEmptyPlaceHolder, false);
+  printBefore(T->getPointeeType(), OS);
+  OS << '^';
+  if (T->isExclusive())
+    OS << " mut";
+}
+
+void TypePrinter::printTrackedReferenceAfter(const TrackedReferenceType *T,
+                                             raw_ostream &OS) {
+  SaveAndRestore NonEmptyPH(HasEmptyPlaceHolder, false);
+  printAfter(T->getPointeeType(), OS);
+}
+
 // When printing a reference, the referenced type might also be a reference.
 // If so, we want to skip that before printing the inner type.
 static QualType skipTopLevelReferences(QualType T) {

@@ -387,6 +387,10 @@ void TypeLocWriter::VisitBlockPointerTypeLoc(BlockPointerTypeLoc TL) {
   addSourceLocation(TL.getCaretLoc());
 }
 
+void TypeLocWriter::VisitTrackedReferenceTypeLoc(TrackedReferenceTypeLoc TL) {
+  addSourceLocation(TL.getCaretLoc());
+}
+
 void TypeLocWriter::VisitLValueReferenceTypeLoc(LValueReferenceTypeLoc TL) {
   addSourceLocation(TL.getAmpLoc());
 }

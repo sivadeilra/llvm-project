@@ -1251,7 +1251,8 @@ struct DeclaratorChunk {
   DeclaratorChunk() {};
 
   enum {
-    Pointer, Reference, Array, Function, BlockPointer, MemberPointer, Paren, Pipe
+    Pointer, Reference, Array, Function, BlockPointer, MemberPointer, Paren,
+    Pipe, TrackedReference
   } Kind;
 
   /// Loc - The place where this type was defined.
@@ -1634,6 +1635,18 @@ struct DeclaratorChunk {
     void destroy() {}
   };
 
+  struct TrackedReferenceTypeInfo {
+    /// Whether this is an exclusive (mut) tracked reference.
+    unsigned IsExclusive : 1;
+    /// Pointer to the IdentifierInfo for the lifetime name, or nullptr if
+    /// elided. For @static and @_, the identifier text is "static" or "_".
+    IdentifierInfo *LifetimeName;
+    /// Source location of the lifetime annotation (@name).
+    SourceLocation LifetimeLoc;
+
+    void destroy() {}
+  };
+
   union {
     PointerTypeInfo       Ptr;
     ReferenceTypeInfo     Ref;
@@ -1642,6 +1655,7 @@ struct DeclaratorChunk {
     BlockPointerTypeInfo  Cls;
     MemberPointerTypeInfo Mem;
     PipeTypeInfo          PipeInfo;
+    TrackedReferenceTypeInfo TRef;
   };
 
   void destroy() {
@@ -1654,6 +1668,7 @@ struct DeclaratorChunk {
     case DeclaratorChunk::MemberPointer: return Mem.destroy();
     case DeclaratorChunk::Paren:         return;
     case DeclaratorChunk::Pipe:          return PipeInfo.destroy();
+    case DeclaratorChunk::TrackedReference: return TRef.destroy();
     }
   }
 
@@ -1778,6 +1793,20 @@ struct DeclaratorChunk {
     I.Kind          = Paren;
     I.Loc           = LParenLoc;
     I.EndLoc        = RParenLoc;
+    return I;
+  }
+
+  /// Return a DeclaratorChunk for a tracked reference (T^ or T^ mut).
+  static DeclaratorChunk getTrackedReference(bool IsExclusive,
+                                             IdentifierInfo *LifetimeName,
+                                             SourceLocation LifetimeLoc,
+                                             SourceLocation CaretLoc) {
+    DeclaratorChunk I;
+    I.Kind              = TrackedReference;
+    I.Loc               = CaretLoc;
+    I.TRef.IsExclusive  = IsExclusive;
+    I.TRef.LifetimeName = LifetimeName;
+    I.TRef.LifetimeLoc  = LifetimeLoc;
     return I;
   }
 
@@ -2470,6 +2499,7 @@ public:
       case DeclaratorChunk::BlockPointer:
       case DeclaratorChunk::MemberPointer:
       case DeclaratorChunk::Pipe:
+      case DeclaratorChunk::TrackedReference:
         return false;
       }
       llvm_unreachable("Invalid type chunk");

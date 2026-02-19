@@ -332,6 +332,7 @@ bool Declarator::isDeclarationOfFunction() const {
     case DeclaratorChunk::BlockPointer:
     case DeclaratorChunk::MemberPointer:
     case DeclaratorChunk::Pipe:
+    case DeclaratorChunk::TrackedReference:
       return false;
     }
     llvm_unreachable("Invalid type chunk");

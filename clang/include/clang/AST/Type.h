@@ -3495,6 +3495,44 @@ public:
   }
 };
 
+/// A tracked safe reference type (Mizar extension).
+///
+/// Represents T^ (shared) or T^ mut (exclusive) references with Rust-like
+/// borrow-checking semantics. These references are non-null, always initialized,
+/// reseatable, and lifetime-tracked.
+class TrackedReferenceType : public Type, public llvm::FoldingSetNode {
+  friend class ASTContext;
+
+  QualType PointeeType;
+  bool Exclusive; // true = T^ mut (exclusive), false = T^ (shared)
+
+  TrackedReferenceType(QualType Pointee, bool Exclusive, QualType CanonicalRef)
+      : Type(TrackedReference, CanonicalRef, Pointee->getDependence()),
+        PointeeType(Pointee), Exclusive(Exclusive) {}
+
+public:
+  QualType getPointeeType() const { return PointeeType; }
+  bool isExclusive() const { return Exclusive; }
+  bool isShared() const { return !Exclusive; }
+
+  bool isSugared() const { return false; }
+  QualType desugar() const { return QualType(this, 0); }
+
+  void Profile(llvm::FoldingSetNodeID &ID) {
+    Profile(ID, getPointeeType(), isExclusive());
+  }
+
+  static void Profile(llvm::FoldingSetNodeID &ID, QualType Pointee,
+                      bool Exclusive) {
+    ID.AddPointer(Pointee.getAsOpaquePtr());
+    ID.AddBoolean(Exclusive);
+  }
+
+  static bool classof(const Type *T) {
+    return T->getTypeClass() == TrackedReference;
+  }
+};
+
 /// Base for LValueReferenceType and RValueReferenceType
 class ReferenceType : public Type, public llvm::FoldingSetNode {
   QualType PointeeType;

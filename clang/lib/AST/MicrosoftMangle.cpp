@@ -3631,6 +3631,16 @@ void MicrosoftCXXNameMangler::mangleType(const BlockPointerType *T,
   mangleFunctionType(PointeeType->castAs<FunctionProtoType>());
 }
 
+void MicrosoftCXXNameMangler::mangleType(const TrackedReferenceType *T,
+                                         Qualifiers Quals, SourceRange Range) {
+  QualType PointeeType = T->getPointeeType();
+  manglePointerCVQualifiers(Quals);
+  manglePointerExtQualifiers(Quals, PointeeType);
+  // Mangle tracked references as pointer-like vendor extension.
+  Out << (T->isExclusive() ? "U14tracked_ref_mut" : "U10tracked_ref");
+  mangleType(PointeeType, Range, QMM_Drop);
+}
+
 void MicrosoftCXXNameMangler::mangleType(const InjectedClassNameType *,
                                          Qualifiers, SourceRange) {
   llvm_unreachable("Cannot mangle injected class name type.");

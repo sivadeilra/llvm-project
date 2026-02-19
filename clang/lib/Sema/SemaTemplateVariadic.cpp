@@ -1070,6 +1070,7 @@ bool Sema::containsUnexpandedParameterPacks(Declarator &D) {
     case DeclaratorChunk::Paren:
     case DeclaratorChunk::Pipe:
     case DeclaratorChunk::BlockPointer:
+    case DeclaratorChunk::TrackedReference:
       // These declarator chunks cannot contain any parameter packs.
       break;
 

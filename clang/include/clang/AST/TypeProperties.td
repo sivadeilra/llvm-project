@@ -73,6 +73,17 @@ let Class = BlockPointerType in {
   def : Creator<[{ return ctx.getBlockPointerType(pointeeType); }]>;
 }
 
+let Class = TrackedReferenceType in {
+  def : Property<"pointeeType", QualType> {
+    let Read = [{ node->getPointeeType() }];
+  }
+  def : Property<"isExclusive", Bool> {
+    let Read = [{ node->isExclusive() }];
+  }
+
+  def : Creator<[{ return ctx.getTrackedReferenceType(pointeeType, isExclusive); }]>;
+}
+
 let Class = ReferenceType in {
   def : Property<"pointeeTypeAsWritten", QualType> {
     let Read = [{ node->getPointeeTypeAsWritten() }];

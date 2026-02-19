@@ -194,6 +194,7 @@ class ASTContext : public RefCountedBase<ASTContext> {
   mutable llvm::FoldingSet<PointerType> PointerTypes{GeneralTypesLog2InitSize};
   mutable llvm::FoldingSet<AdjustedType> AdjustedTypes;
   mutable llvm::FoldingSet<BlockPointerType> BlockPointerTypes;
+  mutable llvm::FoldingSet<TrackedReferenceType> TrackedReferenceTypes;
   mutable llvm::FoldingSet<LValueReferenceType> LValueReferenceTypes;
   mutable llvm::FoldingSet<RValueReferenceType> RValueReferenceTypes;
   mutable llvm::FoldingSet<MemberPointerType> MemberPointerTypes;
@@ -1547,6 +1548,10 @@ public:
   /// Return the uniqued reference to the type for a block of the
   /// specified type.
   QualType getBlockPointerType(QualType T) const;
+
+  /// Return the uniqued reference to a tracked reference type.
+  /// If Exclusive is true, this is T^ mut; otherwise T^.
+  QualType getTrackedReferenceType(QualType T, bool Exclusive) const;
 
   /// Gets the struct used to keep track of the descriptor for pointer to
   /// blocks.

@@ -4077,6 +4077,32 @@ QualType ASTContext::getBlockPointerType(QualType T) const {
   return QualType(New, 0);
 }
 
+/// getTrackedReferenceType - Return the uniqued reference to the type for a
+/// tracked reference (T^ or T^ mut) to the specified type.
+QualType ASTContext::getTrackedReferenceType(QualType T, bool Exclusive) const {
+  llvm::FoldingSetNodeID ID;
+  TrackedReferenceType::Profile(ID, T, Exclusive);
+
+  void *InsertPos = nullptr;
+  if (TrackedReferenceType *RT =
+          TrackedReferenceTypes.FindNodeOrInsertPos(ID, InsertPos))
+    return QualType(RT, 0);
+
+  QualType Canonical;
+  if (!T.isCanonical()) {
+    Canonical = getTrackedReferenceType(getCanonicalType(T), Exclusive);
+
+    TrackedReferenceType *NewIP =
+        TrackedReferenceTypes.FindNodeOrInsertPos(ID, InsertPos);
+    assert(!NewIP && "Shouldn't be in the map!"); (void)NewIP;
+  }
+  auto *New = new (*this, alignof(TrackedReferenceType))
+      TrackedReferenceType(T, Exclusive, Canonical);
+  Types.push_back(New);
+  TrackedReferenceTypes.InsertNode(New, InsertPos);
+  return QualType(New, 0);
+}
+
 /// getLValueReferenceType - Return the uniqued reference to the type for an
 /// lvalue reference to the specified type.
 QualType

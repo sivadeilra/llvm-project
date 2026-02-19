@@ -4475,6 +4475,11 @@ void CXXNameMangler::mangleType(const BlockPointerType *T) {
   mangleType(T->getPointeeType());
 }
 
+void CXXNameMangler::mangleType(const TrackedReferenceType *T) {
+  Out << (T->isExclusive() ? "U14tracked_ref_mut" : "U10tracked_ref");
+  mangleType(T->getPointeeType());
+}
+
 void CXXNameMangler::mangleType(const InjectedClassNameType *T) {
   // Mangle injected class name types as if the user had written the
   // specialization out fully.  It may not actually be possible to see

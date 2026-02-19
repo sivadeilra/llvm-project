@@ -165,6 +165,9 @@ TOK(comment)             // Comment (only in -E -C[C] mode)
 TOK(identifier)          // abcde123
 TOK(raw_identifier)      // Used only in raw lexing mode.
 
+// Mizar: Tracked reference lifetime names (@a, @static, @_)
+TOK(at_identifier)       // @name
+
 // C99 6.4.4.1: Integer Constants
 // C99 6.4.4.2: Floating Constants
 TOK(numeric_constant)    // 0x123
@@ -365,7 +368,9 @@ KEYWORD(explicit                    , KEYCXX)
 KEYWORD(export                      , KEYCXX)
 KEYWORD(false                       , BOOLSUPPORT|KEYC23)
 KEYWORD(friend                      , KEYCXX)
+KEYWORD(mut                         , KEYCXX)
 KEYWORD(mutable                     , KEYCXX)
+KEYWORD(lifetime                    , KEYCXX)
 KEYWORD(namespace                   , KEYCXX)
 KEYWORD(new                         , KEYCXX)
 KEYWORD(operator                    , KEYCXX)

@@ -4423,6 +4423,20 @@ LexStart:
     break;
 
   case '@':
+    // Mizar: Tracked reference lifetime names (@a, @static, @_)
+    if (LangOpts.TrackedReferences && CurPtr[-1] == '@' &&
+        (isAsciiIdentifierStart(*CurPtr) || *CurPtr == '_')) {
+      const char *IdStart = CurPtr;
+      while (isAsciiIdentifierContinue(*CurPtr))
+        ++CurPtr;
+      Kind = tok::at_identifier;
+      // Store the identifier text (without '@') via IdentifierInfo.
+      StringRef IdStr(IdStart, CurPtr - IdStart);
+      Result.setIdentifierInfo(
+          &PP->getIdentifierTable().get(IdStr));
+      FormTokenWithChars(Result, CurPtr, tok::at_identifier);
+      return true;
+    }
     // Objective C support.
     if (CurPtr[-1] == '@' && LangOpts.ObjC)
       Kind = tok::at;

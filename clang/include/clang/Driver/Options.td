@@ -1653,6 +1653,13 @@ defm coro_aligned_allocation : BoolFOption<"coro-aligned-allocation",
           "Prefer aligned allocation for C++ Coroutines">,
   NegFlag<SetFalse>>;
 
+// Mizar: Tracked reference extensions
+defm tracked_references : BoolFOption<"tracked-references",
+  LangOpts<"TrackedReferences">, DefaultFalse,
+  PosFlag<SetTrue, [], [ClangOption, CC1Option],
+          "Enable tracked reference extensions (Mizar)">,
+  NegFlag<SetFalse>>;
+
 defm experimental_library : BoolFOption<"experimental-library",
   LangOpts<"ExperimentalLibrary">, DefaultFalse,
   PosFlag<SetTrue, [], [ClangOption, CC1Option, CLOption],

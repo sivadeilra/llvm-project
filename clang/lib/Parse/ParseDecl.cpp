@@ -6431,7 +6431,40 @@ void Parser::ParseDeclaratorInternal(Declarator &D,
   D.SetRangeEnd(Loc);
 
   if (Kind == tok::star || Kind == tok::caret) {
-    // Is a pointer.
+    // Mizar: When tracked references are enabled, '^' is a tracked reference,
+    // not a block pointer.
+    if (Kind == tok::caret && getLangOpts().TrackedReferences) {
+      // Parse tracked reference: T^, T^@a, T^ mut, T^@a mut
+      IdentifierInfo *LifetimeName = nullptr;
+      SourceLocation LifetimeLoc;
+
+      // Check for optional lifetime annotation: ^@name
+      if (Tok.is(tok::at_identifier)) {
+        LifetimeName = Tok.getIdentifierInfo();
+        LifetimeLoc = Tok.getLocation();
+        ConsumeToken();
+      }
+
+      // Check for 'mut' keyword (exclusive reference)
+      bool IsExclusive = false;
+      if (Tok.is(tok::kw_mut)) {
+        IsExclusive = true;
+        ConsumeToken();
+      }
+
+      // Recursively parse the declarator.
+      Actions.runWithSufficientStackSpace(D.getBeginLoc(), [&] {
+        ParseDeclaratorInternal(D, DirectDeclParser);
+      });
+
+      D.AddTypeInfo(
+          DeclaratorChunk::getTrackedReference(IsExclusive, LifetimeName,
+                                               LifetimeLoc, Loc),
+          SourceLocation());
+      return;
+    }
+
+    // Is a pointer or block pointer.
     DeclSpec DS(AttrFactory);
 
     // GNU attributes are not allowed here in a new-type-id, but Declspec and
@@ -7858,6 +7891,7 @@ void Parser::ParseMisplacedBracketDeclarator(Declarator &D) {
     case DeclaratorChunk::BlockPointer:
     case DeclaratorChunk::MemberPointer:
     case DeclaratorChunk::Pipe:
+    case DeclaratorChunk::TrackedReference:
       NeedParens = true;
       break;
     case DeclaratorChunk::Array:

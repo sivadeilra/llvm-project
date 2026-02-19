@@ -7224,6 +7224,10 @@ void TypeLocReader::VisitBlockPointerTypeLoc(BlockPointerTypeLoc TL) {
   TL.setCaretLoc(readSourceLocation());
 }
 
+void TypeLocReader::VisitTrackedReferenceTypeLoc(TrackedReferenceTypeLoc TL) {
+  TL.setCaretLoc(readSourceLocation());
+}
+
 void TypeLocReader::VisitLValueReferenceTypeLoc(LValueReferenceTypeLoc TL) {
   TL.setAmpLoc(readSourceLocation());
 }

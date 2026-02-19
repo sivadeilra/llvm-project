@@ -847,6 +847,10 @@ public:
   /// type. Subclasses may override this routine to provide different behavior.
   QualType RebuildBlockPointerType(QualType PointeeType, SourceLocation Sigil);
 
+  /// Build a new tracked reference type (T^ or T^ mut).
+  QualType RebuildTrackedReferenceType(QualType PointeeType, bool Exclusive,
+                                       SourceLocation Sigil);
+
   /// Build a new reference type given the type it references.
   ///
   /// By default, performs semantic analysis when building the
@@ -5581,6 +5585,29 @@ TreeTransform<Derived>::TransformBlockPointerType(TypeLocBuilder &TLB,
   }
 
   BlockPointerTypeLoc NewT = TLB.push<BlockPointerTypeLoc>(Result);
+  NewT.setSigilLoc(TL.getSigilLoc());
+  return Result;
+}
+
+template<typename Derived>
+QualType
+TreeTransform<Derived>::TransformTrackedReferenceType(TypeLocBuilder &TLB,
+                                                     TrackedReferenceTypeLoc TL) {
+  QualType PointeeType
+    = getDerived().TransformType(TLB, TL.getPointeeLoc());
+  if (PointeeType.isNull())
+    return QualType();
+
+  QualType Result = TL.getType();
+  if (getDerived().AlwaysRebuild() ||
+      PointeeType != TL.getPointeeLoc().getType()) {
+    Result = getDerived().RebuildTrackedReferenceType(
+        PointeeType, TL.getTypePtr()->isExclusive(), TL.getSigilLoc());
+    if (Result.isNull())
+      return QualType();
+  }
+
+  TrackedReferenceTypeLoc NewT = TLB.push<TrackedReferenceTypeLoc>(Result);
   NewT.setSigilLoc(TL.getSigilLoc());
   return Result;
 }
@@ -17111,6 +17138,12 @@ QualType TreeTransform<Derived>::RebuildBlockPointerType(QualType PointeeType,
                                                          SourceLocation Star) {
   return SemaRef.BuildBlockPointerType(PointeeType, Star,
                                        getDerived().getBaseEntity());
+}
+
+template<typename Derived>
+QualType TreeTransform<Derived>::RebuildTrackedReferenceType(
+    QualType PointeeType, bool Exclusive, SourceLocation Sigil) {
+  return SemaRef.Context.getTrackedReferenceType(PointeeType, Exclusive);
 }
 
 template<typename Derived>

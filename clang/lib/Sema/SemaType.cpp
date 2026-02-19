@@ -444,6 +444,7 @@ static DeclaratorChunk *maybeMovePastReturnType(Declarator &declarator,
     // If we find anything except a function, bail out.
     case DeclaratorChunk::Pointer:
     case DeclaratorChunk::BlockPointer:
+    case DeclaratorChunk::TrackedReference:
     case DeclaratorChunk::Array:
     case DeclaratorChunk::Reference:
     case DeclaratorChunk::MemberPointer:
@@ -465,6 +466,7 @@ static DeclaratorChunk *maybeMovePastReturnType(Declarator &declarator,
 
         case DeclaratorChunk::MemberPointer:
         case DeclaratorChunk::Pointer:
+        case DeclaratorChunk::TrackedReference:
           if (onlyBlockPointers)
             continue;
 
@@ -541,6 +543,7 @@ static void distributeObjCPointerTypeAttr(TypeProcessingState &state,
     case DeclaratorChunk::Reference:
     case DeclaratorChunk::MemberPointer:
     case DeclaratorChunk::Pipe:
+    case DeclaratorChunk::TrackedReference:
       goto error;
     }
   }
@@ -564,6 +567,7 @@ static void distributeObjCPointerTypeAttrFromDeclarator(
     switch (chunk.Kind) {
     case DeclaratorChunk::Pointer:
     case DeclaratorChunk::BlockPointer:
+    case DeclaratorChunk::TrackedReference:
       innermost = i;
       continue;
 
@@ -629,6 +633,7 @@ static void distributeFunctionTypeAttr(TypeProcessingState &state,
     case DeclaratorChunk::Paren:
     case DeclaratorChunk::Pointer:
     case DeclaratorChunk::BlockPointer:
+    case DeclaratorChunk::TrackedReference:
     case DeclaratorChunk::Array:
     case DeclaratorChunk::Reference:
     case DeclaratorChunk::MemberPointer:
@@ -2841,6 +2846,7 @@ static void inferARCWriteback(TypeProcessingState &state,
     case DeclaratorChunk::Function:
     case DeclaratorChunk::MemberPointer:
     case DeclaratorChunk::Pipe:
+    case DeclaratorChunk::TrackedReference:
       return;
     }
   }
@@ -2983,6 +2989,7 @@ static void diagnoseRedundantReturnTypeQualifiers(Sema &S, QualType RetTy,
     case DeclaratorChunk::Array:
     case DeclaratorChunk::MemberPointer:
     case DeclaratorChunk::Pipe:
+    case DeclaratorChunk::TrackedReference:
       // FIXME: We can't currently provide an accurate source location and a
       // fix-it hint for these.
       unsigned AtomicQual = RetTy->isAtomicType() ? DeclSpec::TQ_atomic : 0;
@@ -3627,6 +3634,7 @@ static void warnAboutRedundantParens(Sema &S, Declarator &D, QualType T) {
     case DeclaratorChunk::BlockPointer:
     case DeclaratorChunk::MemberPointer:
     case DeclaratorChunk::Pipe:
+    case DeclaratorChunk::TrackedReference:
       // These cannot appear in expressions.
       CouldBeTemporaryObject = false;
       StartsWithDeclaratorId = false;
@@ -3889,6 +3897,7 @@ classifyPointerDeclarator(Sema &S, QualType type, Declarator &declarator,
 
     case DeclaratorChunk::BlockPointer:
     case DeclaratorChunk::MemberPointer:
+    case DeclaratorChunk::TrackedReference:
       return numNormalPointers > 0 ? PointerDeclaratorKind::MultiLevelPointer
                                    : PointerDeclaratorKind::SingleLevelPointer;
 
@@ -4191,6 +4200,7 @@ static bool hasOuterPointerLikeChunk(const Declarator &D, unsigned endIndex) {
     case DeclaratorChunk::Function:
     case DeclaratorChunk::BlockPointer:
     case DeclaratorChunk::Pipe:
+    case DeclaratorChunk::TrackedReference:
       // These are invalid anyway, so just ignore.
       break;
     }
@@ -4319,6 +4329,7 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
         case DeclaratorChunk::Pointer:
         case DeclaratorChunk::BlockPointer:
         case DeclaratorChunk::MemberPointer:
+        case DeclaratorChunk::TrackedReference:
           DiagKind = 0;
           break;
         case DeclaratorChunk::Reference:
@@ -4387,6 +4398,7 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
 
       case DeclaratorChunk::BlockPointer:
       case DeclaratorChunk::MemberPointer:
+      case DeclaratorChunk::TrackedReference:
         ++NumPointersRemaining;
         break;
 
@@ -4667,6 +4679,10 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
           DeclType.Cls.TypeQuals |= DeclSpec::TQ_const;
         T = S.BuildQualifiedType(T, DeclType.Loc, DeclType.Cls.TypeQuals);
       }
+      break;
+    case DeclaratorChunk::TrackedReference:
+      // Mizar: Build a tracked reference type (T^ or T^ mut).
+      T = S.Context.getTrackedReferenceType(T, DeclType.TRef.IsExclusive);
       break;
     case DeclaratorChunk::Pointer:
       // Verify that we're not building a pointer to pointer to function with
@@ -5777,6 +5793,7 @@ static void transferARCOwnership(TypeProcessingState &state,
     case DeclaratorChunk::Function:
     case DeclaratorChunk::MemberPointer:
     case DeclaratorChunk::Pipe:
+    case DeclaratorChunk::TrackedReference:
       return;
     }
   }
@@ -5856,6 +5873,7 @@ static void fillAtomicQualLoc(AtomicTypeLoc ATL, const DeclaratorChunk &Chunk) {
   case DeclaratorChunk::BlockPointer:
   case DeclaratorChunk::Reference:
   case DeclaratorChunk::MemberPointer:
+  case DeclaratorChunk::TrackedReference:
     // FIXME: Provide a source location for the _Atomic keyword.
     break;
   }
@@ -7474,6 +7492,7 @@ static bool distributeNullabilityTypeAttr(TypeProcessingState &state,
     case DeclaratorChunk::Pointer:
     case DeclaratorChunk::BlockPointer:
     case DeclaratorChunk::MemberPointer:
+    case DeclaratorChunk::TrackedReference:
       return moveToChunk(chunk, false);
 
     case DeclaratorChunk::Paren:

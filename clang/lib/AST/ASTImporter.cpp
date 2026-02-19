@@ -1404,6 +1404,16 @@ ExpectedType ASTNodeImporter::VisitBlockPointerType(const BlockPointerType *T) {
   return Importer.getToContext().getBlockPointerType(*ToPointeeTypeOrErr);
 }
 
+ExpectedType ASTNodeImporter::VisitTrackedReferenceType(
+    const TrackedReferenceType *T) {
+  ExpectedType ToPointeeTypeOrErr = import(T->getPointeeType());
+  if (!ToPointeeTypeOrErr)
+    return ToPointeeTypeOrErr.takeError();
+
+  return Importer.getToContext().getTrackedReferenceType(*ToPointeeTypeOrErr,
+                                                         T->isExclusive());
+}
+
 ExpectedType
 ASTNodeImporter::VisitLValueReferenceType(const LValueReferenceType *T) {
   // FIXME: Check for C++ support in "to" context.

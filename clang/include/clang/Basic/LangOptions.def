@@ -149,6 +149,7 @@ LANGOPT(RecoveryASTType, 1, 1, Compatible, "Preserve the type in recovery expres
 LANGOPT(ThreadsafeStatics , 1, 1, Benign, "thread-safe static initializers")
 LANGOPT(POSIXThreads      , 1, 0, NotCompatible, "POSIX thread support")
 LANGOPT(Blocks            , 1, 0, NotCompatible, "blocks extension to C")
+LANGOPT(TrackedReferences , 1, 0, NotCompatible, "tracked reference extensions")
 LANGOPT(EmitAllDecls      , 1, 0, Benign, "emitting all declarations")
 LANGOPT(MathErrno         , 1, 1, NotCompatible, "errno in math functions")
 LANGOPT(Modules           , 1, 0, NotCompatible, "modules semantics")

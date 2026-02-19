@@ -11355,6 +11355,7 @@ void Sema::CheckConversionDeclarator(Declarator &D, QualType &R,
       case DeclaratorChunk::Reference:
       case DeclaratorChunk::MemberPointer:
       case DeclaratorChunk::Pipe:
+      case DeclaratorChunk::TrackedReference:
         extendLeft(Before, Chunk.getSourceRange());
         break;
 

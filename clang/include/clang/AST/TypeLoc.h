@@ -1374,6 +1374,15 @@ public:
   }
 };
 
+/// Wrapper for source info for tracked references (T^ and T^ mut).
+class TrackedReferenceTypeLoc
+    : public PointerLikeTypeLoc<TrackedReferenceTypeLoc,
+                                TrackedReferenceType> {
+public:
+  SourceLocation getCaretLoc() const { return getSigilLoc(); }
+  void setCaretLoc(SourceLocation Loc) { setSigilLoc(Loc); }
+};
+
 struct MemberPointerLocInfo : public PointerLikeLocInfo {
   void *QualifierData = nullptr;
 };
