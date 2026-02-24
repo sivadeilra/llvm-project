@@ -11199,6 +11199,39 @@ public:
   void CheckMizarSafetyForCall(SourceLocation CallLoc,
                                const FunctionDecl *Callee);
 
+  /// Result of demand-driven safety inference for a function.
+  ///
+  /// When a safe context calls an unspecified (unannotated) function, the
+  /// compiler walks the callee's body to determine if it is effectively safe.
+  /// This struct captures the result and the reason for the verdict.
+  struct MizarInferenceResult {
+    /// What kind of unsafe operation caused the function to be inferred unsafe.
+    enum ReasonKind : uint8_t {
+      NoReason,            ///< Function is safe or not yet analyzed.
+      PtrDeref,            ///< Raw pointer dereference.
+      ReinterpretCast,     ///< reinterpret_cast expression.
+      InlineAsm,           ///< Inline assembly statement.
+      CallsUnsafe,         ///< Calls an explicitly-unsafe function.
+      CallsInferredUnsafe, ///< Calls a function inferred to be unsafe.
+    };
+
+    InferredSafety Safety = InferredSafety::Unknown;
+    ReasonKind Reason = NoReason;
+    SourceLocation UnsafeLoc;
+    const FunctionDecl *UnsafeCallee = nullptr;
+  };
+
+  /// Cache of safety inference results, keyed by canonical FunctionDecl.
+  llvm::DenseMap<const FunctionDecl *, MizarInferenceResult>
+      SafetyInferenceCache;
+
+  /// Perform demand-driven safety inference on the given function.
+  ///
+  /// If the function is explicitly annotated, returns the annotation directly.
+  /// If the function's body is visible, walks it looking for unsafe operations.
+  /// Results are cached; each function is analyzed at most once.
+  MizarInferenceResult InferFunctionSafety(const FunctionDecl *FD);
+
   StmtResult BuildMSDependentExistsStmt(SourceLocation KeywordLoc,
                                         bool IsIfExists,
                                         NestedNameSpecifierLoc QualifierLoc,

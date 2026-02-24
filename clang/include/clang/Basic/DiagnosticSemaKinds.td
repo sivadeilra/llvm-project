@@ -13494,4 +13494,15 @@ def warn_mizar_unsafe_op_in_safe_context
     : Warning<"%0 is not allowed in a safe context">,
       InGroup<MizarSafety>, DefaultError;
 
+// Mizar safety inference diagnostics
+def warn_mizar_inferred_unsafe_call
+    : Warning<"call to function %0 is not known to be safe">,
+      InGroup<MizarSafety>, DefaultError;
+def note_mizar_unsafe_operation
+    : Note<"%0 %select{dereferences a raw pointer"
+           "|uses reinterpret_cast"
+           "|uses inline assembly}1 here">;
+def note_mizar_calls_unsafe
+    : Note<"%0 calls %select{unsafe|potentially unsafe}1 function %2">;
+
 } // end of sema component.

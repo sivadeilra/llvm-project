@@ -4478,24 +4478,6 @@ ExprResult Sema::ActOnMizarUnsafeExpr(SourceLocation KWLoc, Expr *Operand,
       MizarUnsafeExpr(KWLoc, Operand, RParen, Operand->getType());
 }
 
-void Sema::CheckMizarSafetyForCall(SourceLocation CallLoc,
-                                   const FunctionDecl *Callee) {
-  if (!Callee || !isInSafeContext())
-    return;
-
-  // Check if the callee is declared unsafe.
-  const auto *FPT = Callee->getType()->getAs<FunctionProtoType>();
-  if (!FPT || FPT->getSafetySpecifier() != FunctionSafetyKind::Unsafe)
-    return;
-
-  // Calling an unsafe function from a safe context is an error.
-  bool IsMethod = isa<CXXMethodDecl>(Callee);
-  Diag(CallLoc, diag::warn_mizar_unsafe_call_in_safe_context)
-      << IsMethod << Callee;
-  Diag(Callee->getLocation(), diag::note_mizar_unsafe_function_declared_here)
-      << Callee;
-}
-
 StmtResult Sema::ActOnSEHExceptBlock(SourceLocation Loc, Expr *FilterExpr,
                                      Stmt *Block) {
   assert(FilterExpr && Block);

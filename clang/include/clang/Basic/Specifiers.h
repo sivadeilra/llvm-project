@@ -41,6 +41,17 @@ namespace clang {
     Unsafe = 2
   };
 
+  /// Result of demand-driven safety inference for a function (Mizar).
+  ///
+  /// When an unspecified (unannotated) function is called from a safe context,
+  /// the compiler analyzes its body to determine if it is effectively safe.
+  enum class InferredSafety : uint8_t {
+    Unknown,    ///< Not yet analyzed, or no body available.
+    InProgress, ///< Currently being analyzed (cycle detection).
+    Safe,       ///< Body contains no unsafe operations; all callees are safe.
+    Unsafe,     ///< Body contains unsafe operations or calls unsafe functions.
+  };
+
   /// In an if statement, this denotes whether the statement is
   /// a constexpr or consteval if statement.
   enum class IfStatementKind : unsigned {
