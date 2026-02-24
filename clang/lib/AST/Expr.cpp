@@ -1856,6 +1856,11 @@ bool CastExpr::CastConsistency() const {
            !getSubExpr()->getType()->isBlockPointerType());
     goto CheckNoBasePath;
 
+  case CK_PointerToTrackedReference:
+    assert(getType()->isTrackedReferenceType());
+    assert(getSubExpr()->getType()->isPointerType());
+    goto CheckNoBasePath;
+
   case CK_CopyAndAutoreleaseBlockObject:
     assert(getType()->isBlockPointerType());
     assert(getSubExpr()->getType()->isBlockPointerType());

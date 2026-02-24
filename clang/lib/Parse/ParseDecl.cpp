@@ -7211,6 +7211,8 @@ void Parser::ParseFunctionDeclarator(Declarator &D,
   ParsedAttributes FnAttrs(AttrFactory);
   TypeResult TrailingReturnType;
   SourceLocation TrailingReturnTypeLoc;
+  FunctionSafetyKind SafetySpec = FunctionSafetyKind::Unspecified;
+  SourceLocation SafetyLoc;
 
   /* LocalEndLoc is the end location for the local FunctionTypeLoc.
      EndLoc is the end location for the function declarator.
@@ -7317,6 +7319,16 @@ void Parser::ParseFunctionDeclarator(Declarator &D,
       if (ESpecType != EST_None)
         EndLoc = ESpecRange.getEnd();
 
+      // Parse Mizar safety annotation (safe/unsafe) if tracked references
+      // are enabled.
+      if (getLangOpts().TrackedReferences &&
+          (Tok.is(tok::kw_safe) || Tok.is(tok::kw_unsafe))) {
+        SafetySpec = Tok.is(tok::kw_safe) ? FunctionSafetyKind::Safe
+                                          : FunctionSafetyKind::Unsafe;
+        SafetyLoc = ConsumeToken();
+        EndLoc = SafetyLoc;
+      }
+
       // Parse attribute-specifier-seq[opt]. Per DR 979 and DR 1297, this goes
       // after the exception-specification.
       MaybeParseCXX11Attributes(FnAttrs);
@@ -7375,6 +7387,14 @@ void Parser::ParseFunctionDeclarator(Declarator &D,
                     LocalEndLoc, D, TrailingReturnType, TrailingReturnTypeLoc,
                     &DS),
                 std::move(FnAttrs), EndLoc);
+
+  // Set safety annotation on the function declarator chunk, if parsed.
+  if (SafetySpec != FunctionSafetyKind::Unspecified) {
+    DeclaratorChunk &Chunk = D.getTypeObject(D.getNumTypeObjects() - 1);
+    assert(Chunk.Kind == DeclaratorChunk::Function);
+    Chunk.Fun.SafetySpecifier = static_cast<unsigned>(SafetySpec);
+    Chunk.Fun.SafetyLoc = SafetyLoc;
+  }
 }
 
 bool Parser::ParseRefQualifier(bool &RefQualifierIsLValueRef,

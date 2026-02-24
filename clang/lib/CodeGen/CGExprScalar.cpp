@@ -2441,6 +2441,7 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
   case CK_CPointerToObjCPointerCast:
   case CK_BlockPointerToObjCPointerCast:
   case CK_AnyPointerToBlockPointerCast:
+  case CK_PointerToTrackedReference:
   case CK_BitCast: {
     Value *Src = Visit(E);
     llvm::Type *SrcTy = Src->getType();

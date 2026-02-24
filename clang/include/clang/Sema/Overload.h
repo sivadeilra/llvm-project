@@ -174,6 +174,9 @@ class Sema;
     /// Block Pointer conversions
     ICK_Block_Pointer_Conversion,
 
+    /// Pointer to Tracked Reference conversion (Mizar: &expr -> T^)
+    ICK_Pointer_To_Tracked_Reference,
+
     /// Transparent Union Conversions
     ICK_TransparentUnionConversion,
 

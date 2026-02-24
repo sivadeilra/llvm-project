@@ -34,6 +34,13 @@ namespace clang {
   /// Define the kind of constexpr specifier.
   enum class ConstexprSpecKind { Unspecified, Constexpr, Consteval, Constinit };
 
+  /// Define the safety annotation on a function (Mizar).
+  enum class FunctionSafetyKind : unsigned {
+    Unspecified = 0,
+    Safe = 1,
+    Unsafe = 2
+  };
+
   /// In an if statement, this denotes whether the statement is
   /// a constexpr or consteval if statement.
   enum class IfStatementKind : unsigned {

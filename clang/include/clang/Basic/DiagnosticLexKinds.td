@@ -1043,4 +1043,12 @@ Error<"'#pragma unsafe_buffer_usage' was not ended">;
 
 def err_pp_pragma_unsafe_buffer_usage_syntax :
 Error<"expected 'begin' or 'end'">;
+
+// Mizar pragma diagnostics
+def err_pp_pragma_mizar_syntax :
+Error<"expected 'on', 'off', 'push', or 'pop' after '#pragma mizar'">;
+
+def err_pp_pragma_mizar_pop_empty :
+Error<"'#pragma mizar pop' without matching '#pragma mizar push'">;
+
 }

@@ -2108,6 +2108,18 @@ void TextNodeDumper::VisitFunctionProtoType(const FunctionProtoType *T) {
   dumpDeclRef(EPI.ExceptionSpec.SourceDecl, "ExceptionSourceDecl");
   dumpDeclRef(EPI.ExceptionSpec.SourceTemplate, "ExceptionSourceTemplate");
 
+  // Mizar safety annotation.
+  switch (static_cast<FunctionSafetyKind>(EPI.SafetySpecifier)) {
+  case FunctionSafetyKind::Unspecified:
+    break;
+  case FunctionSafetyKind::Safe:
+    OS << " safe";
+    break;
+  case FunctionSafetyKind::Unsafe:
+    OS << " unsafe";
+    break;
+  }
+
   // FIXME: Consumed parameters.
   VisitFunctionType(T);
 }

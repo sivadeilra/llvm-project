@@ -1389,6 +1389,11 @@ struct DeclaratorChunk {
     LLVM_PREFERRED_TYPE(bool)
     unsigned HasTrailingReturnType : 1;
 
+    /// SafetySpecifier - The function safety annotation (Mizar).
+    /// This is a value of type FunctionSafetyKind.
+    LLVM_PREFERRED_TYPE(FunctionSafetyKind)
+    unsigned SafetySpecifier : 2;
+
     /// The location of the left parenthesis in the source.
     SourceLocation LParenLoc;
 
@@ -1421,6 +1426,9 @@ struct DeclaratorChunk {
 
     /// The end location of the exception specification, if any.
     SourceLocation ExceptionSpecLocEnd;
+
+    /// The location of the safety specifier (safe/unsafe), if any.
+    SourceLocation SafetyLoc;
 
     /// Params - This is a pointer to a new[]'d array of ParamInfo objects that
     /// describe the parameters specified by this function declarator.  null if
@@ -1584,6 +1592,14 @@ struct DeclaratorChunk {
     /// Determine whether this function declarator had a
     /// trailing-return-type.
     bool hasTrailingReturnType() const { return HasTrailingReturnType; }
+
+    /// Get the safety specifier kind for this function declarator.
+    FunctionSafetyKind getSafetySpecifier() const {
+      return static_cast<FunctionSafetyKind>(SafetySpecifier);
+    }
+
+    /// Get the location of the safety specifier, if any.
+    SourceLocation getSafetyLoc() const { return SafetyLoc; }
 
     /// Get the trailing-return-type for this function declarator.
     ParsedType getTrailingReturnType() const {

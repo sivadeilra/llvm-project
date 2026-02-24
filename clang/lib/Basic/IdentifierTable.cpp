@@ -110,7 +110,8 @@ enum TokenKey : unsigned {
   KEYNOZOS = 0x4000000,
   KEYHLSL = 0x8000000,
   KEYFIXEDPOINT = 0x10000000,
-  KEYMAX = KEYFIXEDPOINT, // The maximum key
+  KEYMIZAR = 0x20000000,
+  KEYMAX = KEYMIZAR, // The maximum key
   KEYALLCXX = KEYCXX | KEYCXX11 | KEYCXX20,
   KEYALL = (KEYMAX | (KEYMAX - 1)) & ~KEYNOMS18 & ~KEYNOOPENCL &
            ~KEYNOZOS // KEYNOMS18, KEYNOOPENCL, KEYNOZOS are excluded.
@@ -215,6 +216,11 @@ static KeywordStatus getKeywordStatusHelper(const LangOptions &LangOpts,
     return KS_Unknown;
   case KEYFIXEDPOINT:
     return LangOpts.FixedPoint ? KS_Enabled : KS_Disabled;
+  case KEYMIZAR:
+    // When TrackedReferences is enabled (via -ftracked-references), Mizar
+    // keywords are active from the start. Otherwise, they start disabled
+    // and can be toggled on/off at runtime by #pragma mizar on/off.
+    return LangOpts.TrackedReferences ? KS_Enabled : KS_Disabled;
   default:
     llvm_unreachable("Unknown KeywordStatus flag");
   }

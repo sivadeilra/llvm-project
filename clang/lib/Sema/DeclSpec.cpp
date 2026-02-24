@@ -212,6 +212,9 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto,
                                   TrailingReturnType.isInvalid();
   I.Fun.TrailingReturnType      = TrailingReturnType.get();
   I.Fun.TrailingReturnTypeLoc   = TrailingReturnTypeLoc;
+  I.Fun.SafetySpecifier         = static_cast<unsigned>(
+                                      FunctionSafetyKind::Unspecified);
+  I.Fun.SafetyLoc               = SourceLocation();
   I.Fun.MethodQualifiers        = nullptr;
   I.Fun.QualAttrFactory         = nullptr;
 

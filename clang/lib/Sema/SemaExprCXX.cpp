@@ -5126,6 +5126,16 @@ Sema::PerformImplicitConversion(Expr *From, QualType ToType,
     }
     break;
 
+  case ICK_Pointer_To_Tracked_Reference:
+    // Pointer to tracked reference conversion (Mizar: &expr → T^/T^ mut).
+    // At the IR level, tracked references are represented as pointers,
+    // so this is effectively a no-op cast that changes the type system
+    // representation.
+    From = ImpCastExprToType(From, ToType, CK_PointerToTrackedReference,
+                             VK_PRValue, /*BasePath=*/nullptr, CCK)
+               .get();
+    break;
+
   case ICK_Block_Pointer_Conversion: {
     LangAS AddrSpaceL =
         ToType->castAs<BlockPointerType>()->getPointeeType().getAddressSpace();

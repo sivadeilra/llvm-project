@@ -904,6 +904,7 @@ static void visitLocalsRetainedByInitializer(IndirectLocalPath &Path,
       case CK_CPointerToObjCPointerCast:
       case CK_BlockPointerToObjCPointerCast:
       case CK_AnyPointerToBlockPointerCast:
+      case CK_PointerToTrackedReference:
       case CK_AddressSpaceConversion:
         break;
 

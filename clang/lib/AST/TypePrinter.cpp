@@ -1068,6 +1068,18 @@ void TypePrinter::printFunctionProtoAfter(const FunctionProtoType *T,
   if (T->hasCFIUncheckedCallee())
     OS << " __attribute__((cfi_unchecked_callee))";
 
+  // Mizar safety annotation.
+  switch (T->getSafetySpecifier()) {
+  case FunctionSafetyKind::Unspecified:
+    break;
+  case FunctionSafetyKind::Safe:
+    OS << " safe";
+    break;
+  case FunctionSafetyKind::Unsafe:
+    OS << " unsafe";
+    break;
+  }
+
   if (T->hasTrailingReturn()) {
     OS << " -> ";
     print(T->getReturnType(), OS, StringRef());

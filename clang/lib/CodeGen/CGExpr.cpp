@@ -5562,6 +5562,7 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
   case CK_MemberPointerToBoolean:
   case CK_ReinterpretMemberPointer:
   case CK_AnyPointerToBlockPointerCast:
+  case CK_PointerToTrackedReference:
   case CK_ARCProduceObject:
   case CK_ARCConsumeObject:
   case CK_ARCReclaimReturnedObject:

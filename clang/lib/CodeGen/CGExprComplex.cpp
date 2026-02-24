@@ -599,6 +599,7 @@ ComplexPairTy ComplexExprEmitter::EmitCast(CastKind CK, Expr *Op,
   case CK_CPointerToObjCPointerCast:
   case CK_BlockPointerToObjCPointerCast:
   case CK_AnyPointerToBlockPointerCast:
+  case CK_PointerToTrackedReference:
   case CK_ObjCObjectLValueCast:
   case CK_FloatingComplexToReal:
   case CK_FloatingComplexToBoolean:

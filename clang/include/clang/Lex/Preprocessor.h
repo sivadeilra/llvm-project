@@ -3008,6 +3008,20 @@ private:
   void emitRestrictInfNaNWarning(const Token &Identifier,
                                  unsigned DiagSelection) const;
 
+  //===--------------------------------------------------------------------===//
+  // Mizar mode state
+  //===--------------------------------------------------------------------===//
+
+  /// Whether Mizar mode is currently enabled (via -ftracked-references
+  /// or \#pragma mizar on).
+  bool MizarEnabled = false;
+
+  /// Location where Mizar mode was most recently enabled.
+  SourceLocation MizarEnabledLoc;
+
+  /// Stack for \#pragma mizar push/pop.
+  SmallVector<std::pair<bool, SourceLocation>, 4> MizarStateStack;
+
   /// This boolean state keeps track if the current scanned token (by this PP)
   /// is in an "-Wunsafe-buffer-usage" opt-out region. Assuming PP scans a
   /// translation unit in a linear order.
@@ -3053,6 +3067,25 @@ private:
       return &Iter->getSecond();
     }
   } LoadedSafeBufferOptOutMap;
+
+public:
+  //===--------------------------------------------------------------------===//
+  // Mizar mode public API
+  //===--------------------------------------------------------------------===//
+
+  /// \return true iff Mizar mode is currently enabled.
+  bool isMizarEnabled() const { return MizarEnabled; }
+
+  /// Enable or disable Mizar mode, toggling Mizar contextual keywords
+  /// (safe, unsafe, mut, lifetime).
+  void setMizarEnabled(bool Enable, SourceLocation Loc);
+
+  /// Push the current Mizar state onto the stack (for \#pragma mizar push).
+  void pushMizarState();
+
+  /// Pop the Mizar state from the stack (for \#pragma mizar pop).
+  /// \return true if the stack is empty (error).
+  bool popMizarState(SourceLocation Loc);
 
 public:
   /// \return true iff the given `Loc` is in a "-Wunsafe-buffer-usage" opt-out

@@ -2573,6 +2573,7 @@ public:
   bool isCFIUncheckedCalleeFunctionType() const;
   bool hasPointeeToToCFIUncheckedCalleeFunctionType() const;
   bool isBlockPointerType() const;
+  bool isTrackedReferenceType() const;
   bool isVoidPointerType() const;
   bool isReferenceType() const;
   bool isLValueReferenceType() const;
@@ -4676,9 +4677,15 @@ public:
     unsigned EffectsHaveConditions : 1;
     unsigned NumFunctionEffects : 4;
 
+    /// The safety annotation (Mizar): safe, unsafe, or unspecified.
+    LLVM_PREFERRED_TYPE(FunctionSafetyKind)
+    unsigned SafetySpecifier : 2;
+
     FunctionTypeExtraBitfields()
         : NumExceptionType(0), HasArmTypeAttributes(false),
-          EffectsHaveConditions(false), NumFunctionEffects(0) {}
+          EffectsHaveConditions(false), NumFunctionEffects(0),
+          SafetySpecifier(
+              static_cast<unsigned>(FunctionSafetyKind::Unspecified)) {}
   };
 
   /// The AArch64 SME ACLE (Arm C/C++ Language Extensions) define a number
@@ -5304,6 +5311,8 @@ public:
     LLVM_PREFERRED_TYPE(bool)
     unsigned CFIUncheckedCallee : 1;
     unsigned AArch64SMEAttributes : 9;
+    LLVM_PREFERRED_TYPE(FunctionSafetyKind)
+    unsigned SafetySpecifier : 2;
     Qualifiers TypeQuals;
     RefQualifierKind RefQualifier = RQ_None;
     ExceptionSpecInfo ExceptionSpec;
@@ -5313,11 +5322,15 @@ public:
 
     ExtProtoInfo()
         : Variadic(false), HasTrailingReturn(false), CFIUncheckedCallee(false),
-          AArch64SMEAttributes(SME_NormalFunction) {}
+          AArch64SMEAttributes(SME_NormalFunction),
+          SafetySpecifier(static_cast<unsigned>(FunctionSafetyKind::Unspecified))
+    {}
 
     ExtProtoInfo(CallingConv CC)
         : ExtInfo(CC), Variadic(false), HasTrailingReturn(false),
-          CFIUncheckedCallee(false), AArch64SMEAttributes(SME_NormalFunction) {}
+          CFIUncheckedCallee(false), AArch64SMEAttributes(SME_NormalFunction),
+          SafetySpecifier(static_cast<unsigned>(FunctionSafetyKind::Unspecified))
+    {}
 
     ExtProtoInfo withExceptionSpec(const ExceptionSpecInfo &ESI) {
       ExtProtoInfo Result(*this);
@@ -5334,7 +5347,9 @@ public:
     bool requiresFunctionProtoTypeExtraBitfields() const {
       return ExceptionSpec.Type == EST_Dynamic ||
              requiresFunctionProtoTypeArmAttributes() ||
-             !FunctionEffects.empty();
+             !FunctionEffects.empty() ||
+             SafetySpecifier !=
+                 static_cast<unsigned>(FunctionSafetyKind::Unspecified);
     }
 
     bool requiresFunctionProtoTypeArmAttributes() const {
@@ -5493,6 +5508,8 @@ public:
     EPI.ExtParameterInfos = getExtParameterInfosOrNull();
     EPI.AArch64SMEAttributes = getAArch64SMEAttributes();
     EPI.FunctionEffects = getFunctionEffects();
+    EPI.SafetySpecifier =
+        static_cast<unsigned>(getSafetySpecifier());
     return EPI;
   }
 
@@ -5614,6 +5631,14 @@ public:
 
   bool hasCFIUncheckedCallee() const {
     return FunctionTypeBits.CFIUncheckedCallee;
+  }
+
+  /// Get the safety annotation (Mizar) for this function prototype.
+  FunctionSafetyKind getSafetySpecifier() const {
+    if (hasExtraBitfields())
+      return static_cast<FunctionSafetyKind>(
+          getTrailingObjects<FunctionTypeExtraBitfields>()->SafetySpecifier);
+    return FunctionSafetyKind::Unspecified;
   }
 
   Qualifiers getMethodQuals() const {
@@ -8414,6 +8439,10 @@ inline bool Type::isSignablePointerType() const {
 
 inline bool Type::isBlockPointerType() const {
   return isa<BlockPointerType>(CanonicalType);
+}
+
+inline bool Type::isTrackedReferenceType() const {
+  return isa<TrackedReferenceType>(CanonicalType);
 }
 
 inline bool Type::isReferenceType() const {

@@ -204,6 +204,10 @@ void Preprocessor::Initialize(const TargetInfo &Target,
   // Populate the identifier table with info about keywords for the current language.
   Identifiers.AddKeywords(LangOpts);
 
+  // If -ftracked-references is enabled, Mizar keywords are active from the
+  // start (they were registered as KS_Enabled by AddKeywords above).
+  MizarEnabled = LangOpts.TrackedReferences;
+
   // Initialize the __FTL_EVAL_METHOD__ macro to the TargetInfo.
   setTUFPEvalMethod(getTargetInfo().getFPEvalMethod());
 
@@ -1513,6 +1517,50 @@ void Preprocessor::emitFinalMacroWarning(const Token &Identifier,
   Diag(Identifier, diag::warn_pragma_final_macro)
       << Identifier.getIdentifierInfo() << (IsUndef ? 0 : 1);
   Diag(*A.FinalAnnotationLoc, diag::note_pp_macro_annotation) << 2;
+}
+
+//===----------------------------------------------------------------------===//
+// Mizar mode support
+//===----------------------------------------------------------------------===//
+
+void Preprocessor::setMizarEnabled(bool Enable, SourceLocation Loc) {
+  if (MizarEnabled == Enable)
+    return; // Already in the requested state.
+
+  MizarEnabled = Enable;
+  if (Enable)
+    MizarEnabledLoc = Loc;
+
+  // Toggle Mizar contextual keywords between tok::identifier and
+  // their keyword token kinds.
+  static constexpr std::pair<const char *, tok::TokenKind> MizarKeywords[] = {
+      {"safe", tok::kw_safe},
+      {"unsafe", tok::kw_unsafe},
+      {"mut", tok::kw_mut},
+      {"lifetime", tok::kw_lifetime},
+  };
+
+  for (const auto &[Name, Kind] : MizarKeywords) {
+    IdentifierInfo &II = getIdentifierTable().get(Name);
+    if (Enable)
+      II.revertIdentifierToTokenID(Kind);
+    else
+      II.revertTokenIDToIdentifier();
+  }
+}
+
+void Preprocessor::pushMizarState() {
+  MizarStateStack.emplace_back(MizarEnabled, MizarEnabledLoc);
+}
+
+bool Preprocessor::popMizarState(SourceLocation Loc) {
+  if (MizarStateStack.empty())
+    return true; // Error: no matching push.
+
+  auto [PrevEnabled, PrevLoc] = MizarStateStack.pop_back_val();
+  if (PrevEnabled != MizarEnabled)
+    setMizarEnabled(PrevEnabled, Loc);
+  return false;
 }
 
 bool Preprocessor::isSafeBufferOptOut(const SourceManager &SourceMgr,

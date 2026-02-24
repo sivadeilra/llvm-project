@@ -151,6 +151,7 @@ ImplicitConversionRank clang::GetConversionRank(ImplicitConversionKind Kind) {
       ICR_Complex_Real_Conversion,
       ICR_Conversion,
       ICR_Conversion,
+      ICR_Conversion,
       ICR_Writeback_Conversion,
       ICR_Exact_Match, // NOTE(gbiv): This may not be completely right --
                        // it was omitted by the patch that added
@@ -216,6 +217,7 @@ static const char *GetImplicitConversionName(ImplicitConversionKind Kind) {
       "Vector splat",
       "Complex-real conversion",
       "Block Pointer conversion",
+      "Pointer to tracked reference conversion",
       "Transparent Union Conversion",
       "Writeback conversion",
       "OpenCL Zero Event Conversion",
@@ -2453,6 +2455,9 @@ static bool IsStandardConversion(Sema &S, Expr* From, QualType ToType,
     FromType = ToType.getUnqualifiedType();
   } else if (S.IsBlockPointerConversion(FromType, ToType, FromType)) {
     SCS.Second = ICK_Block_Pointer_Conversion;
+  } else if (From && S.getLangOpts().TrackedReferences &&
+             S.IsTrackedReferenceConversion(From, FromType, ToType, FromType)) {
+    SCS.Second = ICK_Pointer_To_Tracked_Reference;
   } else if (AllowObjCWritebackConversion &&
              S.ObjC().isObjCWritebackConversion(FromType, ToType, FromType)) {
     SCS.Second = ICK_Writeback_Conversion;
@@ -3307,6 +3312,144 @@ bool Sema::IsBlockPointerConversion(QualType FromType, QualType ToType,
 
    ConvertedType = ToType;
    return true;
+}
+
+/// IsTrackedReferenceConversion - Determine whether the conversion from
+/// the expression From (with type FromType) to ToType is a valid
+/// pointer-to-tracked-reference conversion.
+///
+/// This conversion is valid when:
+///   1. ToType is a TrackedReferenceType (T^ or T^ mut)
+///   2. FromType is a PointerType (T*)
+///   3. From is a UnaryOperator with UO_AddrOf (the & operator)
+///   4. The operand of & is a qualifying expression:
+///      a. Static storage duration variable or subobject → shared only
+///      b. Automatic storage duration variable → shared or exclusive
+///      c. Dereference of a tracked reference → propagation rules
+///   5. Const correctness is preserved
+bool Sema::IsTrackedReferenceConversion(Expr *From, QualType FromType,
+                                        QualType ToType,
+                                        QualType &ConvertedType) {
+  // Must be converting TO a tracked reference type.
+  const auto *ToTracked = ToType->getAs<TrackedReferenceType>();
+  if (!ToTracked)
+    return false;
+
+  // Must be converting FROM a pointer type.
+  const auto *FromPtr = FromType->getAs<PointerType>();
+  if (!FromPtr)
+    return false;
+
+  // The expression must be an address-of (&E).
+  auto *UnOp = dyn_cast<UnaryOperator>(From->IgnoreParenImpCasts());
+  if (!UnOp || UnOp->getOpcode() != UO_AddrOf)
+    return false;
+
+  Expr *Operand = UnOp->getSubExpr()->IgnoreParenImpCasts();
+
+  // Check const correctness: the pointee type of the tracked reference
+  // must be at least as const-qualified as the pointer's pointee type.
+  QualType FromPointee = FromPtr->getPointeeType();
+  QualType ToPointee = ToTracked->getPointeeType();
+
+  // Cannot drop const: if source is const, target must also be const.
+  if (FromPointee.isConstQualified() && !ToPointee.isConstQualified())
+    return false;
+
+  // Cannot add const to non-const when targeting exclusive (mut):
+  // This is fine — const int^ mut doesn't make much sense but is handled by
+  // the general rule. The key check: pointee types must be compatible.
+  if (!Context.hasSameUnqualifiedType(FromPointee, ToPointee))
+    return false;
+
+  // If target is non-const but source is const, reject (dropping const).
+  // Already handled above. If target is const but source is non-const, that's
+  // fine (adding const is always safe for shared refs).
+
+  // Now check the operand to determine storage duration / tracked ref deref.
+  // Walk through member accesses and array subscripts to find the root.
+  Expr *Root = Operand;
+  while (true) {
+    Root = Root->IgnoreParenImpCasts();
+    if (auto *ME = dyn_cast<MemberExpr>(Root)) {
+      Root = ME->getBase();
+      continue;
+    }
+    if (auto *ASE = dyn_cast<ArraySubscriptExpr>(Root)) {
+      Root = ASE->getBase();
+      continue;
+    }
+    break;
+  }
+  Root = Root->IgnoreParenImpCasts();
+
+  // Case 1: Root is a DeclRefExpr to a VarDecl — check storage duration.
+  if (auto *DRE = dyn_cast<DeclRefExpr>(Root)) {
+    if (auto *VD = dyn_cast<VarDecl>(DRE->getDecl())) {
+      StorageDuration SD = VD->getStorageDuration();
+
+      if (SD == SD_Static) {
+        // Static storage → only shared tracked references allowed.
+        if (ToTracked->isExclusive()) {
+          // Error: cannot create exclusive tracked ref from static storage.
+          // We return false here; the caller will fall through to other
+          // conversion attempts, and eventually produce an error.
+          return false;
+        }
+        ConvertedType = ToType;
+        return true;
+      }
+
+      if (SD == SD_Automatic) {
+        // Automatic storage → both shared and exclusive are permitted.
+        ConvertedType = ToType;
+        return true;
+      }
+
+      // Thread-local storage is not supported.
+      if (SD == SD_Thread)
+        return false;
+
+      // Dynamic storage (shouldn't appear as DeclRefExpr normally).
+      return false;
+    }
+  }
+
+  // Case 2: Root is a dereference of a tracked reference (*p, p->...).
+  // After walking through MemberExpr/ArraySubscriptExpr, if the root is
+  // a UnaryOperator(UO_Deref) or if we arrived at a pointer dereference
+  // through the -> operator (which is an implicit deref), check if the
+  // base is a tracked reference.
+  if (auto *UODeref = dyn_cast<UnaryOperator>(Root)) {
+    if (UODeref->getOpcode() == UO_Deref) {
+      QualType BaseType = UODeref->getSubExpr()->IgnoreParenImpCasts()->getType();
+      if (const auto *BaseTracked = BaseType->getAs<TrackedReferenceType>()) {
+        // Cannot derive exclusive from shared source.
+        if (ToTracked->isExclusive() && BaseTracked->isShared())
+          return false;
+        ConvertedType = ToType;
+        return true;
+      }
+      // Dereference of raw pointer — NOT allowed.
+      return false;
+    }
+  }
+
+  // If the root expression's type is a TrackedReferenceType, then we're
+  // accessing through an implicit dereference (e.g., p->field where p is T^).
+  // The MemberExpr's base for -> is the pointer/tracked ref itself.
+  {
+    QualType RootType = Root->getType();
+    if (const auto *BaseTracked = RootType->getAs<TrackedReferenceType>()) {
+      if (ToTracked->isExclusive() && BaseTracked->isShared())
+        return false;
+      ConvertedType = ToType;
+      return true;
+    }
+  }
+
+  // No other forms qualify.
+  return false;
 }
 
 enum {
@@ -6235,6 +6378,7 @@ static bool CheckConvertedConstantConversions(Sema &S,
   case ICK_Vector_Splat:
   case ICK_Complex_Real:
   case ICK_Block_Pointer_Conversion:
+  case ICK_Pointer_To_Tracked_Reference:
   case ICK_TransparentUnionConversion:
   case ICK_Writeback_Conversion:
   case ICK_Zero_Event_Conversion:

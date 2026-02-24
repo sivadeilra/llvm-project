@@ -10095,6 +10095,15 @@ public:
   bool IsBlockPointerConversion(QualType FromType, QualType ToType,
                                 QualType &ConvertedType);
 
+  /// IsTrackedReferenceConversion - Determine whether the conversion from
+  /// the expression \p From (of type \p FromType) to \p ToType is a valid
+  /// pointer-to-tracked-reference conversion. This requires that \p From is
+  /// an address-of expression (&E) where E designates a qualifying operand
+  /// (static storage, automatic storage, or tracked reference dereference).
+  bool IsTrackedReferenceConversion(Expr *From, QualType FromType,
+                                    QualType ToType,
+                                    QualType &ConvertedType);
+
   /// FunctionParamTypesAreEqual - This routine checks two function proto types
   /// for equality of their parameter types. Caller has already checked that
   /// they have same number of parameters.  If the parameters are different,

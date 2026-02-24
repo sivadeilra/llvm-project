@@ -1280,6 +1280,44 @@ struct PragmaUnsafeBufferUsageHandler : public PragmaHandler {
   }
 };
 
+/// PragmaMizarHandler - handles \#pragma mizar on/off/push/pop
+///
+/// This pragma controls whether Mizar contextual keywords (safe, unsafe,
+/// mut, lifetime) are active. When active, these identifiers are recognized
+/// as keywords by the lexer.
+///
+/// Usage:
+///   \#pragma mizar on    — Enable Mizar keywords
+///   \#pragma mizar off   — Disable Mizar keywords
+///   \#pragma mizar push  — Save current state
+///   \#pragma mizar pop   — Restore saved state
+struct PragmaMizarHandler : public PragmaHandler {
+  PragmaMizarHandler() : PragmaHandler() {} // empty name = catch-all in namespace
+  void HandlePragma(Preprocessor &PP, PragmaIntroducer Introducer,
+                    Token &Tok) override {
+    if (Tok.isNot(tok::identifier)) {
+      PP.Diag(Tok, diag::err_pp_pragma_mizar_syntax);
+      return;
+    }
+
+    IdentifierInfo *II = Tok.getIdentifierInfo();
+    SourceLocation Loc = Tok.getLocation();
+
+    if (II->isStr("on")) {
+      PP.setMizarEnabled(true, Loc);
+    } else if (II->isStr("off")) {
+      PP.setMizarEnabled(false, Loc);
+    } else if (II->isStr("push")) {
+      PP.pushMizarState();
+    } else if (II->isStr("pop")) {
+      if (PP.popMizarState(Loc))
+        PP.Diag(Loc, diag::err_pp_pragma_mizar_pop_empty);
+    } else {
+      PP.Diag(Tok, diag::err_pp_pragma_mizar_syntax);
+    }
+  }
+};
+
 /// PragmaDiagnosticHandler - e.g. '\#pragma GCC diagnostic ignored "-Wformat"'
 struct PragmaDiagnosticHandler : public PragmaHandler {
 private:
@@ -2178,6 +2216,9 @@ void Preprocessor::RegisterBuiltinPragmas() {
 
   // Safe Buffers pragmas
   AddPragmaHandler("clang", new PragmaUnsafeBufferUsageHandler);
+
+  // Mizar pragma: #pragma mizar on/off/push/pop
+  AddPragmaHandler("mizar", new PragmaMizarHandler());
 
   // Add region pragmas.
   AddPragmaHandler(new PragmaRegionHandler("region"));

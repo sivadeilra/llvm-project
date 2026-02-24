@@ -109,6 +109,7 @@ Address CIRGenFunction::emitPointerWithAlignment(const Expr *expr,
     }
 
     case CK_AnyPointerToBlockPointerCast:
+    case CK_PointerToTrackedReference:
     case CK_BaseToDerived:
     case CK_BaseToDerivedMemberPointer:
     case CK_BlockPointerToObjCPointerCast:
@@ -916,6 +917,7 @@ LValue CIRGenFunction::emitCastLValue(const CastExpr *e) {
   case CK_MemberPointerToBoolean:
   case CK_ReinterpretMemberPointer:
   case CK_AnyPointerToBlockPointerCast:
+  case CK_PointerToTrackedReference:
   case CK_ARCProduceObject:
   case CK_ARCConsumeObject:
   case CK_ARCReclaimReturnedObject:
