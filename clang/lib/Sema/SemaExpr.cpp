@@ -6866,6 +6866,9 @@ ExprResult Sema::BuildResolvedCallExpr(Expr *Fn, NamedDecl *NDecl,
     }
   }
 
+  // Mizar safety: diagnose calls to unsafe functions from safe contexts.
+  CheckMizarSafetyForCall(Fn->getExprLoc(), FDecl);
+
   // Promote the function operand.
   // We special-case function promotion here because we only allow promoting
   // builtin functions to function pointers in the callee of a call.

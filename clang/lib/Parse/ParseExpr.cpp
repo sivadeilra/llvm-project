@@ -1500,6 +1500,10 @@ Parser::ParseCastExpression(CastParseKind ParseKind, bool isAddressOfOperand,
 
     if (T.expectAndConsume(diag::err_expected_lparen_after, "unsafe"))
       return ExprError();
+
+    // The operand is evaluated in an unsafe context.
+    Sema::SafetyContextRAII SafetyCtx(Actions,
+                                       FunctionSafetyKind::Unsafe);
     Res = ParseExpression();
 
     T.consumeClose();

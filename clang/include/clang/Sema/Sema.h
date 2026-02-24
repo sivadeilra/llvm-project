@@ -11142,6 +11142,63 @@ public:
   ExprResult ActOnMizarUnsafeExpr(SourceLocation KWLoc, Expr *Operand,
                                   SourceLocation RParen);
 
+  /// Mizar safety context tracking.
+  ///
+  /// Tracks whether the current code is being analyzed in a safe, unsafe,
+  /// or unspecified safety context. The context affects which operations
+  /// are permitted (e.g., calling unsafe functions requires an unsafe context).
+  ///
+  /// The stack is pushed when entering a function body (based on the
+  /// function's safety annotation) or a safe/unsafe block statement, and
+  /// popped when leaving.
+  SmallVector<FunctionSafetyKind, 4> SafetyContextStack;
+
+  /// Get the current safety context level.
+  FunctionSafetyKind getCurSafetyContext() const {
+    return SafetyContextStack.empty() ? FunctionSafetyKind::Unspecified
+                                      : SafetyContextStack.back();
+  }
+
+  /// Returns true if the current context is Safe.
+  bool isInSafeContext() const {
+    return getCurSafetyContext() == FunctionSafetyKind::Safe;
+  }
+
+  /// Push a new safety context onto the stack.
+  void PushSafetyContext(FunctionSafetyKind Level) {
+    SafetyContextStack.push_back(Level);
+  }
+
+  /// Pop the current safety context.
+  void PopSafetyContext() {
+    assert(!SafetyContextStack.empty() && "Safety context stack underflow");
+    SafetyContextStack.pop_back();
+  }
+
+  /// RAII object that pushes/pops a safety context.
+  class SafetyContextRAII {
+    Sema &S;
+    bool Active;
+  public:
+    SafetyContextRAII(Sema &S, FunctionSafetyKind Level,
+                      bool Active = true)
+        : S(S), Active(Active) {
+      if (Active)
+        S.PushSafetyContext(Level);
+    }
+    ~SafetyContextRAII() {
+      if (Active)
+        S.PopSafetyContext();
+    }
+    SafetyContextRAII(const SafetyContextRAII &) = delete;
+    SafetyContextRAII &operator=(const SafetyContextRAII &) = delete;
+  };
+
+  /// Check whether calling the given function is permitted in the current
+  /// safety context. Emits diagnostics if not.
+  void CheckMizarSafetyForCall(SourceLocation CallLoc,
+                               const FunctionDecl *Callee);
+
   StmtResult BuildMSDependentExistsStmt(SourceLocation KeywordLoc,
                                         bool IsIfExists,
                                         NestedNameSpecifierLoc QualifierLoc,

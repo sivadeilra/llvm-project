@@ -15881,6 +15881,7 @@ Decl *Sema::ActOnStartOfFunctionDef(Scope *FnBodyScope, Decl *D,
     // anyway so we can try to parse the function body.
     PushFunctionScope();
     PushExpressionEvaluationContext(ExprEvalContexts.back().Context);
+    PushSafetyContext(FunctionSafetyKind::Unspecified);
     return D;
   }
 
@@ -15890,6 +15891,13 @@ Decl *Sema::ActOnStartOfFunctionDef(Scope *FnBodyScope, Decl *D,
     FD = FunTmpl->getTemplatedDecl();
   else
     FD = cast<FunctionDecl>(D);
+
+  // Push Mizar safety context based on the function's safety annotation.
+  if (const auto *FPT = FD->getType()->getAs<FunctionProtoType>()) {
+    PushSafetyContext(FPT->getSafetySpecifier());
+  } else {
+    PushSafetyContext(FunctionSafetyKind::Unspecified);
+  }
 
   // Do not push if it is a lambda because one is already pushed when building
   // the lambda in ActOnStartOfLambdaDefinition().
@@ -16603,6 +16611,7 @@ Decl *Sema::ActOnFinishFunctionBody(Decl *dcl, Stmt *Body,
     } else {
       // Parsing the function declaration failed in some way. Pop the fake scope
       // we pushed on.
+      PopSafetyContext();
       PopFunctionScopeInfo(ActivePolicy, dcl);
       return nullptr;
     }
@@ -16698,6 +16707,7 @@ Decl *Sema::ActOnFinishFunctionBody(Decl *dcl, Stmt *Body,
   if (!IsInstantiation)
     PopDeclContext();
 
+  PopSafetyContext();
   PopFunctionScopeInfo(ActivePolicy, dcl);
   // If any errors have occurred, clear out any temporaries that may have
   // been leftover. This ensures that these temporaries won't be picked up for

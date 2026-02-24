@@ -618,6 +618,11 @@ StmtResult Parser::ParseMizarSafetyBlock() {
   if (Tok.isNot(tok::l_brace))
     return StmtError(Diag(Tok, diag::err_expected) << tok::l_brace);
 
+  // Push the safety context so that the body is analyzed in the
+  // appropriate safe/unsafe context.
+  Sema::SafetyContextRAII SafetyCtx(
+      Actions, IsSafe ? FunctionSafetyKind::Safe : FunctionSafetyKind::Unsafe);
+
   StmtResult Body(ParseCompoundStatement());
   if (Body.isInvalid())
     return Body;
