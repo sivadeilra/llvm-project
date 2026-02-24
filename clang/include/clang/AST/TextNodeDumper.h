@@ -431,6 +431,7 @@ public:
   void VisitEmbedExpr(const EmbedExpr *S);
   void VisitAtomicExpr(const AtomicExpr *AE);
   void VisitConvertVectorExpr(const ConvertVectorExpr *S);
+  void VisitMizarSafetyStmt(const MizarSafetyStmt *S);
 };
 
 } // namespace clang

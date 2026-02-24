@@ -4068,6 +4068,50 @@ public:
   const_child_range children() const;
 };
 
+/// MizarSafetyStmt - Represents a 'safe { }' or 'unsafe { }' block statement
+/// in the Mizar safe-C++ extensions. The safety kind distinguishes which
+/// keyword introduced the block.
+class MizarSafetyStmt : public Stmt {
+  friend class ASTReader;
+  friend class ASTStmtReader;
+
+  SourceLocation KeywordLoc;
+  Stmt *Body;
+  bool IsSafe; // true = safe { }, false = unsafe { }
+
+  MizarSafetyStmt(SourceLocation KWLoc, bool IsSafe, CompoundStmt *Body)
+      : Stmt(MizarSafetyStmtClass), KeywordLoc(KWLoc), Body(Body),
+        IsSafe(IsSafe) {}
+
+  explicit MizarSafetyStmt(EmptyShell E)
+      : Stmt(MizarSafetyStmtClass, E), Body(nullptr), IsSafe(false) {}
+
+public:
+  static MizarSafetyStmt *Create(const ASTContext &C, SourceLocation KWLoc,
+                                 bool IsSafe, CompoundStmt *Body);
+
+  bool isSafe() const { return IsSafe; }
+  bool isUnsafe() const { return !IsSafe; }
+
+  SourceLocation getKeywordLoc() const { return KeywordLoc; }
+  CompoundStmt *getBody() const { return cast<CompoundStmt>(Body); }
+
+  SourceLocation getBeginLoc() const LLVM_READONLY { return KeywordLoc; }
+  SourceLocation getEndLoc() const LLVM_READONLY {
+    return Body->getEndLoc();
+  }
+
+  child_range children() { return child_range(&Body, &Body + 1); }
+
+  const_child_range children() const {
+    return const_child_range(&Body, &Body + 1);
+  }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == MizarSafetyStmtClass;
+  }
+};
+
 } // namespace clang
 
 #endif // LLVM_CLANG_AST_STMT_H

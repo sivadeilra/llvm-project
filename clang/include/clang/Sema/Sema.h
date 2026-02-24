@@ -11136,6 +11136,12 @@ public:
   StmtResult ActOnFinishSEHFinallyBlock(SourceLocation Loc, Stmt *Block);
   StmtResult ActOnSEHLeaveStmt(SourceLocation Loc, Scope *CurScope);
 
+  // Mizar safety blocks and expressions.
+  StmtResult ActOnMizarSafetyBlock(SourceLocation KWLoc, bool IsSafe,
+                                   Stmt *Body);
+  ExprResult ActOnMizarUnsafeExpr(SourceLocation KWLoc, Expr *Operand,
+                                  SourceLocation RParen);
+
   StmtResult BuildMSDependentExistsStmt(SourceLocation KeywordLoc,
                                         bool IsIfExists,
                                         NestedNameSpecifierLoc QualifierLoc,

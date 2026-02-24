@@ -1947,6 +1947,10 @@ enum StmtCode {
   STMT_SEH_FINALLY,                 // SEHFinallyStmt
   STMT_SEH_TRY,                     // SEHTryStmt
 
+  // Mizar safety extensions
+  STMT_MIZAR_SAFETY,                // MizarSafetyStmt
+  EXPR_MIZAR_UNSAFE,                // MizarUnsafeExpr
+
   // OpenMP directives
   STMT_OMP_META_DIRECTIVE,
   STMT_OMP_CANONICAL_LOOP,

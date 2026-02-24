@@ -155,6 +155,7 @@ mlir::LogicalResult CIRGenFunction::emitStmt(const Stmt *s,
   case Stmt::ObjCForCollectionStmtClass:
   case Stmt::ObjCAutoreleasePoolStmtClass:
   case Stmt::SEHTryStmtClass:
+  case Stmt::MizarSafetyStmtClass:
   case Stmt::OMPMetaDirectiveClass:
   case Stmt::OMPCanonicalLoopClass:
   case Stmt::OMPSimdDirectiveClass:

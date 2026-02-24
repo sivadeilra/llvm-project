@@ -8100,6 +8100,8 @@ public:
 
   bool VisitParenExpr(const ParenExpr *E)
     { return StmtVisitorTy::Visit(E->getSubExpr()); }
+  bool VisitMizarUnsafeExpr(const MizarUnsafeExpr *E)
+    { return StmtVisitorTy::Visit(E->getSubExpr()); }
   bool VisitUnaryExtension(const UnaryOperator *E)
     { return StmtVisitorTy::Visit(E->getSubExpr()); }
   bool VisitUnaryPlus(const UnaryOperator *E)

@@ -2941,6 +2941,11 @@ DEF_TRAVERSE_STMT(SEHTryStmt, {})
 DEF_TRAVERSE_STMT(SEHExceptStmt, {})
 DEF_TRAVERSE_STMT(SEHFinallyStmt, {})
 DEF_TRAVERSE_STMT(SEHLeaveStmt, {})
+
+// Mizar safety extensions
+DEF_TRAVERSE_STMT(MizarSafetyStmt, {})
+DEF_TRAVERSE_STMT(MizarUnsafeExpr, {})
+
 DEF_TRAVERSE_STMT(CapturedStmt, { TRY_TO(TraverseDecl(S->getCapturedDecl())); })
 
 DEF_TRAVERSE_STMT(SYCLKernelCallStmt, {

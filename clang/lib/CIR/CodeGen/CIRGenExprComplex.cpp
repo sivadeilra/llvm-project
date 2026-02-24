@@ -54,6 +54,7 @@ public:
   mlir::Value VisitInitListExpr(const InitListExpr *e);
   mlir::Value VisitImaginaryLiteral(const ImaginaryLiteral *il);
   mlir::Value VisitParenExpr(ParenExpr *e);
+  mlir::Value VisitMizarUnsafeExpr(MizarUnsafeExpr *e);
   mlir::Value
   VisitSubstNonTypeTemplateParmExpr(SubstNonTypeTemplateParmExpr *e);
   mlir::Value VisitUnaryDeref(const Expr *e);
@@ -326,6 +327,10 @@ ComplexExprEmitter::VisitImaginaryLiteral(const ImaginaryLiteral *il) {
 }
 
 mlir::Value ComplexExprEmitter::VisitParenExpr(ParenExpr *e) {
+  return Visit(e->getSubExpr());
+}
+
+mlir::Value ComplexExprEmitter::VisitMizarUnsafeExpr(MizarUnsafeExpr *e) {
   return Visit(e->getSubExpr());
 }
 

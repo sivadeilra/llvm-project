@@ -2393,6 +2393,22 @@ void ASTStmtWriter::VisitSEHTryStmt(SEHTryStmt *S) {
   Code = serialization::STMT_SEH_TRY;
 }
 
+void ASTStmtWriter::VisitMizarSafetyStmt(MizarSafetyStmt *S) {
+  VisitStmt(S);
+  Record.push_back(S->isSafe());
+  Record.AddSourceLocation(S->getKeywordLoc());
+  Record.AddStmt(S->getBody());
+  Code = serialization::STMT_MIZAR_SAFETY;
+}
+
+void ASTStmtWriter::VisitMizarUnsafeExpr(MizarUnsafeExpr *E) {
+  VisitExpr(E);
+  Record.AddSourceLocation(E->getKeywordLoc());
+  Record.AddStmt(E->getSubExpr());
+  Record.AddSourceLocation(E->getRParenLoc());
+  Code = serialization::EXPR_MIZAR_UNSAFE;
+}
+
 void ASTStmtWriter::VisitSEHLeaveStmt(SEHLeaveStmt *S) {
   VisitStmt(S);
   Record.AddSourceLocation(S->getLeaveLoc());

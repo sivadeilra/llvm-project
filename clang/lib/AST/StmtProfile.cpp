@@ -388,6 +388,15 @@ void StmtProfiler::VisitSEHLeaveStmt(const SEHLeaveStmt *S) {
   VisitStmt(S);
 }
 
+void StmtProfiler::VisitMizarSafetyStmt(const MizarSafetyStmt *S) {
+  VisitStmt(S);
+  ID.AddBoolean(S->isSafe());
+}
+
+void StmtProfiler::VisitMizarUnsafeExpr(const MizarUnsafeExpr *S) {
+  VisitExpr(S);
+}
+
 void StmtProfiler::VisitCapturedStmt(const CapturedStmt *S) {
   VisitStmt(S);
 }

@@ -694,6 +694,18 @@ void StmtPrinter::VisitSEHTryStmt(SEHTryStmt *Node) {
   OS << NL;
 }
 
+void StmtPrinter::VisitMizarSafetyStmt(MizarSafetyStmt *Node) {
+  Indent() << (Node->isSafe() ? "safe " : "unsafe ");
+  PrintRawCompoundStmt(Node->getBody());
+  OS << NL;
+}
+
+void StmtPrinter::VisitMizarUnsafeExpr(MizarUnsafeExpr *Node) {
+  OS << "unsafe(";
+  PrintExpr(Node->getSubExpr());
+  OS << ")";
+}
+
 void StmtPrinter::PrintRawSEHFinallyStmt(SEHFinallyStmt *Node) {
   OS << "__finally ";
   PrintRawCompoundStmt(Node->getBlock());

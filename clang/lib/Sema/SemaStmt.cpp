@@ -4466,6 +4466,18 @@ StmtResult Sema::ActOnSEHTryBlock(bool IsCXXTry, SourceLocation TryLoc,
   return SEHTryStmt::Create(Context, IsCXXTry, TryLoc, TryBlock, Handler);
 }
 
+StmtResult Sema::ActOnMizarSafetyBlock(SourceLocation KWLoc, bool IsSafe,
+                                       Stmt *Body) {
+  return MizarSafetyStmt::Create(Context, KWLoc, IsSafe,
+                                 cast<CompoundStmt>(Body));
+}
+
+ExprResult Sema::ActOnMizarUnsafeExpr(SourceLocation KWLoc, Expr *Operand,
+                                      SourceLocation RParen) {
+  return new (Context)
+      MizarUnsafeExpr(KWLoc, Operand, RParen, Operand->getType());
+}
+
 StmtResult Sema::ActOnSEHExceptBlock(SourceLocation Loc, Expr *FilterExpr,
                                      Stmt *Block) {
   assert(FilterExpr && Block);

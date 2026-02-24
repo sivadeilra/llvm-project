@@ -130,6 +130,7 @@ public:
   }
 
   mlir::Value VisitParenExpr(ParenExpr *pe) { return Visit(pe->getSubExpr()); }
+  mlir::Value VisitMizarUnsafeExpr(MizarUnsafeExpr *e) { return Visit(e->getSubExpr()); }
 
   mlir::Value VisitGenericSelectionExpr(GenericSelectionExpr *ge) {
     return Visit(ge->getResultExpr());

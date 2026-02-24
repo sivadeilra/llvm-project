@@ -151,6 +151,9 @@ inline Expr *IgnoreParensSingleStep(Expr *E) {
   if (auto *PE = dyn_cast<ParenExpr>(E))
     return PE->getSubExpr();
 
+  if (auto *UE = dyn_cast<MizarUnsafeExpr>(E))
+    return UE->getSubExpr();
+
   if (auto *UO = dyn_cast<UnaryOperator>(E)) {
     if (UO->getOpcode() == UO_Extension)
       return UO->getSubExpr();

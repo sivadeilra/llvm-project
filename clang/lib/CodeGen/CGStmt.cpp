@@ -207,6 +207,10 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::SEHTryStmtClass:
     EmitSEHTryStmt(cast<SEHTryStmt>(*S));
     break;
+  case Stmt::MizarSafetyStmtClass:
+    // Safety blocks are semantically transparent for codegen — just emit body.
+    EmitCompoundStmt(*cast<MizarSafetyStmt>(*S).getBody());
+    break;
   case Stmt::OMPMetaDirectiveClass:
     EmitOMPMetaDirective(cast<OMPMetaDirective>(*S));
     break;

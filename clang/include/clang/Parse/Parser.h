@@ -7553,6 +7553,12 @@ public:
   ///
   StmtResult ParseSEHTryBlock();
 
+  //===--------------------------------------------------------------------===//
+  // Mizar: Safety Blocks
+
+  /// ParseMizarSafetyBlock - Parse 'safe { }' or 'unsafe { }' block.
+  StmtResult ParseMizarSafetyBlock();
+
   /// ParseSEHExceptBlock - Handle __except
   ///
   /// \verbatim

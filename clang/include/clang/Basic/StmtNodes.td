@@ -326,3 +326,7 @@ def OpenACCAsteriskSizeExpr : StmtNode<Expr>;
 
 // HLSL Constructs.
 def HLSLOutArgExpr : StmtNode<Expr>;
+
+// Mizar Safety Extensions.
+def MizarSafetyStmt : StmtNode<Stmt>;
+def MizarUnsafeExpr : StmtNode<Expr>;

@@ -5437,6 +5437,47 @@ public:
   }
 };
 
+/// MizarUnsafeExpr - Represents an 'unsafe(expr)' expression in the Mizar
+/// safe-C++ extensions. Evaluates the operand expression in an unsafe context,
+/// suppressing borrow-checker diagnostics.
+class MizarUnsafeExpr : public Expr {
+  friend class ASTStmtReader;
+
+  Stmt *Operand;
+  SourceLocation KeywordLoc;
+  SourceLocation RParenLoc;
+
+public:
+  MizarUnsafeExpr(SourceLocation KWLoc, Expr *Operand, SourceLocation RParen,
+                  QualType Ty)
+      : Expr(MizarUnsafeExprClass, Ty, Operand->getValueKind(),
+             Operand->getObjectKind()),
+        Operand(Operand), KeywordLoc(KWLoc), RParenLoc(RParen) {
+    setDependence(Operand->getDependence());
+  }
+
+  explicit MizarUnsafeExpr(EmptyShell Empty)
+      : Expr(MizarUnsafeExprClass, Empty), Operand(nullptr) {}
+
+  Expr *getSubExpr() const { return cast<Expr>(Operand); }
+
+  SourceLocation getKeywordLoc() const { return KeywordLoc; }
+  SourceLocation getRParenLoc() const { return RParenLoc; }
+
+  SourceLocation getBeginLoc() const LLVM_READONLY { return KeywordLoc; }
+  SourceLocation getEndLoc() const LLVM_READONLY { return RParenLoc; }
+
+  child_range children() { return child_range(&Operand, &Operand + 1); }
+
+  const_child_range children() const {
+    return const_child_range(&Operand, &Operand + 1);
+  }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == MizarUnsafeExprClass;
+  }
+};
+
 } // namespace clang
 
 #endif // LLVM_CLANG_AST_EXPRCXX_H

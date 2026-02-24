@@ -2378,6 +2378,24 @@ void ASTStmtReader::VisitSEHTryStmt(SEHTryStmt *S) {
 }
 
 //===----------------------------------------------------------------------===//
+// Mizar Safety Statements and Expressions
+//===----------------------------------------------------------------------===//
+
+void ASTStmtReader::VisitMizarSafetyStmt(MizarSafetyStmt *S) {
+  VisitStmt(S);
+  S->IsSafe = Record.readInt();
+  S->KeywordLoc = readSourceLocation();
+  S->Body = Record.readSubStmt();
+}
+
+void ASTStmtReader::VisitMizarUnsafeExpr(MizarUnsafeExpr *E) {
+  VisitExpr(E);
+  E->KeywordLoc = readSourceLocation();
+  E->Operand = Record.readSubExpr();
+  E->RParenLoc = readSourceLocation();
+}
+
+//===----------------------------------------------------------------------===//
 // CUDA Expressions and Statements
 //===----------------------------------------------------------------------===//
 
@@ -3533,6 +3551,14 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
 
     case STMT_SEH_TRY:
       S = new (Context) SEHTryStmt(Empty);
+      break;
+
+    case STMT_MIZAR_SAFETY:
+      S = new (Context) MizarSafetyStmt(Empty);
+      break;
+
+    case EXPR_MIZAR_UNSAFE:
+      S = new (Context) MizarUnsafeExpr(Empty);
       break;
 
     case STMT_CXX_CATCH:

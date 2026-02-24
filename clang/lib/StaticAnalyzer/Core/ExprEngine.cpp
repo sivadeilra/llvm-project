@@ -1747,6 +1747,7 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::SEHExceptStmtClass:
     case Stmt::SEHLeaveStmtClass:
     case Stmt::SEHFinallyStmtClass:
+    case Stmt::MizarSafetyStmtClass:
     case Stmt::OMPCanonicalLoopClass:
     case Stmt::OMPParallelDirectiveClass:
     case Stmt::OMPSimdDirectiveClass:
@@ -1848,6 +1849,8 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
 
     case Stmt::ParenExprClass:
       llvm_unreachable("ParenExprs already handled.");
+    case Stmt::MizarUnsafeExprClass:
+      llvm_unreachable("MizarUnsafeExprs already handled.");
     case Stmt::GenericSelectionExprClass:
       llvm_unreachable("GenericSelectionExprs already handled.");
     // Cases that should never be evaluated simply because they shouldn't

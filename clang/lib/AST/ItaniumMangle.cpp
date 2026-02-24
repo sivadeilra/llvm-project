@@ -5678,6 +5678,10 @@ recurse:
     E = cast<ParenExpr>(E)->getSubExpr();
     goto recurse;
 
+  case Expr::MizarUnsafeExprClass:
+    E = cast<MizarUnsafeExpr>(E)->getSubExpr();
+    goto recurse;
+
   case Expr::ConceptSpecializationExprClass: {
     auto *CSE = cast<ConceptSpecializationExpr>(E);
     if (isCompatibleWith(LangOptions::ClangABI::Ver17)) {

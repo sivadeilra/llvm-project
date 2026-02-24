@@ -1482,3 +1482,9 @@ bool CapturedStmt::capturesVariable(const VarDecl *Var) const {
 
   return false;
 }
+
+MizarSafetyStmt *MizarSafetyStmt::Create(const ASTContext &C,
+                                          SourceLocation KWLoc, bool IsSafe,
+                                          CompoundStmt *Body) {
+  return new (C) MizarSafetyStmt(KWLoc, IsSafe, Body);
+}

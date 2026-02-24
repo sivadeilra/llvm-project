@@ -71,6 +71,10 @@ public:
     return Visit(pe->getSubExpr(), t);
   }
 
+  mlir::Attribute VisitMizarUnsafeExpr(MizarUnsafeExpr *e, QualType t) {
+    return Visit(e->getSubExpr(), t);
+  }
+
   mlir::Attribute
   VisitSubstNonTypeTemplateParmExpr(SubstNonTypeTemplateParmExpr *pe,
                                     QualType t) {

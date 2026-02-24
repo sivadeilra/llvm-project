@@ -191,7 +191,8 @@ Retry:
     [[fallthrough]];
   }
 
-  default: {
+  default:
+  HandleDefault: {
     if (getLangOpts().CPlusPlus && MaybeParseCXX11Attributes(CXX11Attrs, true))
       goto Retry;
 
@@ -344,6 +345,18 @@ Retry:
     ProhibitAttributes(CXX11Attrs);
     ProhibitAttributes(GNUAttrs);
     return ParseSEHTryBlock();
+
+  case tok::kw_safe:
+  case tok::kw_unsafe:
+    // safe { } or unsafe { } block statement.
+    // If followed by '(', this is an expression (handled by expression parsing
+    // in the default case below).
+    if (NextToken().is(tok::l_brace)) {
+      ProhibitAttributes(CXX11Attrs);
+      ProhibitAttributes(GNUAttrs);
+      return ParseMizarSafetyBlock();
+    }
+    goto HandleDefault;
 
   case tok::kw___leave:
     Res = ParseSEHLeaveStatement();
@@ -587,6 +600,29 @@ StmtResult Parser::ParseSEHTryBlock() {
                                   TryLoc,
                                   TryBlock.get(),
                                   Handler.get());
+}
+
+/// ParseMizarSafetyBlock - Parse a 'safe { }' or 'unsafe { }' block statement.
+///
+/// \verbatim
+/// mizar-safety-block:
+///   'safe' compound-statement
+///   'unsafe' compound-statement
+/// \endverbatim
+StmtResult Parser::ParseMizarSafetyBlock() {
+  assert((Tok.is(tok::kw_safe) || Tok.is(tok::kw_unsafe)) &&
+         "Expected 'safe' or 'unsafe'");
+  bool IsSafe = Tok.is(tok::kw_safe);
+  SourceLocation KWLoc = ConsumeToken();
+
+  if (Tok.isNot(tok::l_brace))
+    return StmtError(Diag(Tok, diag::err_expected) << tok::l_brace);
+
+  StmtResult Body(ParseCompoundStatement());
+  if (Body.isInvalid())
+    return Body;
+
+  return Actions.ActOnMizarSafetyBlock(KWLoc, IsSafe, Body.get());
 }
 
 StmtResult Parser::ParseSEHExceptBlock(SourceLocation ExceptLoc) {

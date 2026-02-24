@@ -2669,6 +2669,16 @@ public:
     return getSema().ActOnSEHTryBlock(IsCXXTry, TryLoc, TryBlock, Handler);
   }
 
+  StmtResult RebuildMizarSafetyStmt(SourceLocation KWLoc, bool IsSafe,
+                                    Stmt *Body) {
+    return getSema().ActOnMizarSafetyBlock(KWLoc, IsSafe, Body);
+  }
+
+  ExprResult RebuildMizarUnsafeExpr(SourceLocation KWLoc, Expr *Operand,
+                                    SourceLocation RParen) {
+    return getSema().ActOnMizarUnsafeExpr(KWLoc, Operand, RParen);
+  }
+
   StmtResult RebuildSEHExceptStmt(SourceLocation Loc, Expr *FilterExpr,
                                   Stmt *Block) {
     return getSema().ActOnSEHExceptBlock(Loc, FilterExpr, Block);
@@ -9488,6 +9498,34 @@ template<typename Derived>
 StmtResult
 TreeTransform<Derived>::TransformSEHLeaveStmt(SEHLeaveStmt *S) {
   return S;
+}
+
+template <typename Derived>
+StmtResult
+TreeTransform<Derived>::TransformMizarSafetyStmt(MizarSafetyStmt *S) {
+  StmtResult Body = getDerived().TransformCompoundStmt(S->getBody());
+  if (Body.isInvalid())
+    return StmtError();
+
+  if (!getDerived().AlwaysRebuild() && Body.get() == S->getBody())
+    return S;
+
+  return getDerived().RebuildMizarSafetyStmt(S->getKeywordLoc(), S->isSafe(),
+                                             Body.get());
+}
+
+template <typename Derived>
+ExprResult
+TreeTransform<Derived>::TransformMizarUnsafeExpr(MizarUnsafeExpr *E) {
+  ExprResult Operand = getDerived().TransformExpr(E->getSubExpr());
+  if (Operand.isInvalid())
+    return ExprError();
+
+  if (!getDerived().AlwaysRebuild() && Operand.get() == E->getSubExpr())
+    return E;
+
+  return getDerived().RebuildMizarUnsafeExpr(E->getKeywordLoc(), Operand.get(),
+                                             E->getRParenLoc());
 }
 
 //===----------------------------------------------------------------------===//

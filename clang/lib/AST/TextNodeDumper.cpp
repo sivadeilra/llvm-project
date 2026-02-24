@@ -3183,3 +3183,7 @@ void TextNodeDumper::VisitConvertVectorExpr(const ConvertVectorExpr *S) {
   if (S->hasStoredFPFeatures())
     printFPOptions(S->getStoredFPFeatures());
 }
+
+void TextNodeDumper::VisitMizarSafetyStmt(const MizarSafetyStmt *S) {
+  OS << " " << (S->isSafe() ? "safe" : "unsafe");
+}
