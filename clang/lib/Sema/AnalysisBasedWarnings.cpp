@@ -30,6 +30,7 @@
 #include "clang/Analysis/Analyses/CalledOnceCheck.h"
 #include "clang/Analysis/Analyses/Consumed.h"
 #include "clang/Analysis/Analyses/LifetimeSafety.h"
+#include "clang/Analysis/Analyses/MizarBorrowCheck.h"
 #include "clang/Analysis/Analyses/ReachableCode.h"
 #include "clang/Analysis/Analyses/ThreadSafety.h"
 #include "clang/Analysis/Analyses/UninitializedValues.h"
@@ -3020,6 +3021,52 @@ void clang::sema::AnalysisBasedWarnings::IssueWarnings(
   if (EnableLifetimeSafetyAnalysis && S.getLangOpts().CPlusPlus) {
     if (CFG *cfg = AC.getCFG())
       runLifetimeSafetyAnalysis(*cast<DeclContext>(D), *cfg, AC);
+  }
+
+  // Mizar NLL borrow checking for tracked reference types (T^ / T^ mut).
+  if (S.getLangOpts().TrackedReferences) {
+    if (const auto *FD = dyn_cast<FunctionDecl>(D)) {
+      /// Concrete handler that translates borrow-check callbacks into
+      /// Clang diagnostics.
+      struct SemaBorrowHandler : MizarBorrowCheckHandler {
+        Sema &SemaRef;
+        explicit SemaBorrowHandler(Sema &S) : SemaRef(S) {}
+
+        void handleExclusiveBorrowConflict(
+            SourceLocation NewBorrowLoc, const NamedDecl *Path,
+            SourceLocation ExistingLoc, bool ExistingIsExclusive) override {
+          SemaRef.Diag(NewBorrowLoc,
+                       diag::warn_mizar_exclusive_borrow_conflict)
+              << Path;
+          SemaRef.Diag(ExistingLoc, diag::note_mizar_borrow_created_here)
+              << ExistingIsExclusive << Path;
+        }
+
+        void handleSharedWhileExclusive(
+            SourceLocation NewBorrowLoc, const NamedDecl *Path,
+            SourceLocation ExclusiveLoc) override {
+          SemaRef.Diag(NewBorrowLoc,
+                       diag::warn_mizar_shared_while_exclusive)
+              << Path;
+          SemaRef.Diag(ExclusiveLoc, diag::note_mizar_borrow_created_here)
+              << /*IsExclusive=*/true << Path;
+        }
+
+        void handleDoesNotLiveLongEnough(
+            const NamedDecl *DroppedVar, SourceLocation BorrowLoc,
+            bool BorrowIsExclusive, SourceLocation UseLoc) override {
+          SemaRef.Diag(BorrowLoc,
+                       diag::warn_mizar_does_not_live_long_enough)
+              << DroppedVar;
+          if (UseLoc.isValid())
+            SemaRef.Diag(UseLoc, diag::note_mizar_borrow_used_here)
+                << BorrowIsExclusive;
+        }
+      };
+
+      SemaBorrowHandler Handler(S);
+      runMizarBorrowCheck(*FD, S.getASTContext(), Handler);
+    }
   }
   // Check for violations of "called once" parameter properties.
   if (S.getLangOpts().ObjC && !S.getLangOpts().CPlusPlus &&

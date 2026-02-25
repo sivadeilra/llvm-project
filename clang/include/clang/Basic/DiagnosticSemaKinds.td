@@ -13505,4 +13505,27 @@ def note_mizar_unsafe_operation
 def note_mizar_calls_unsafe
     : Note<"%0 calls %select{unsafe|potentially unsafe}1 function %2">;
 
+// Mizar borrow checker diagnostics
+// Note: these are warnings (not DefaultError) because AnalysisBasedWarnings
+// skips all subsequent functions if hasUncompilableErrorOccurred() is true.
+// Use -Werror=mizar-safety to promote to hard errors.
+def warn_mizar_exclusive_borrow_conflict
+    : Warning<"cannot borrow %0 as exclusive because it is already borrowed">,
+      InGroup<MizarSafety>;
+def warn_mizar_shared_while_exclusive
+    : Warning<"cannot borrow %0 as shared because it is exclusively borrowed">,
+      InGroup<MizarSafety>;
+def warn_mizar_write_while_borrowed
+    : Warning<"cannot assign to %0 because it is borrowed">,
+      InGroup<MizarSafety>;
+def warn_mizar_does_not_live_long_enough
+    : Warning<"%0 does not live long enough">,
+      InGroup<MizarSafety>;
+def note_mizar_borrow_created_here
+    : Note<"%select{shared|exclusive}0 borrow of %1 created here">;
+def note_mizar_borrow_used_here
+    : Note<"%select{shared|exclusive}0 borrow used here">;
+def note_mizar_dropped_here
+    : Note<"%0 dropped here while still borrowed">;
+
 } // end of sema component.

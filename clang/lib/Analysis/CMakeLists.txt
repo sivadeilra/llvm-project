@@ -23,6 +23,7 @@ add_clang_library(clangAnalysis
   IssueHash.cpp
   LifetimeSafety.cpp
   LiveVariables.cpp
+  MizarBorrowCheck.cpp
   MacroExpansionContext.cpp
   ObjCNoReturn.cpp
   PathDiagnostic.cpp

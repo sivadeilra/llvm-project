@@ -14674,6 +14674,9 @@ static QualType CheckIndirectionOperand(Sema &S, Expr *Op, ExprValueKind &VK,
   else if (const ObjCObjectPointerType *OPT =
              OpTy->getAs<ObjCObjectPointerType>())
     Result = OPT->getPointeeType();
+  else if (const TrackedReferenceType *TRT =
+             OpTy->getAs<TrackedReferenceType>())
+    Result = TRT->getPointeeType();
   else {
     ExprResult PR = S.CheckPlaceholderExpr(Op);
     if (PR.isInvalid()) return QualType();
