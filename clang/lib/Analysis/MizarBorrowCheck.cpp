@@ -110,7 +110,14 @@ struct Loan {
 /// Base class for lifetime-relevant facts observed during CFG traversal.
 class Fact {
 public:
-  enum Kind : uint8_t { Issue, Expire, AssignOrigin, UseOrigin };
+  enum Kind : uint8_t {
+    Issue,
+    Expire,
+    AssignOrigin,
+    UseOrigin,
+    MoveOrigin,  // Phase B: exclusive ref passed by value (consumed)
+    WritePath,   // Phase B: write to a borrowed-from variable
+  };
 
 private:
   Kind K;
@@ -206,6 +213,42 @@ public:
   }
 };
 
+/// An exclusive origin is moved (consumed by a function call).
+class MoveOriginFact : public Fact {
+  OriginID OID;
+  SourceLocation Loc;
+
+public:
+  static bool classof(const Fact *F) { return F->getKind() == MoveOrigin; }
+
+  MoveOriginFact(OriginID O, SourceLocation L)
+      : Fact(MoveOrigin), OID(O), Loc(L) {}
+  OriginID getOriginID() const { return OID; }
+  SourceLocation getMoveLoc() const { return Loc; }
+
+  void dump(llvm::raw_ostream &OS) const override {
+    OS << "MoveOrigin (Origin: " << OID << ")\n";
+  }
+};
+
+/// A write to a storage location that may have active loans.
+class WritePathFact : public Fact {
+  const clang::ValueDecl *Target;
+  SourceLocation Loc;
+
+public:
+  static bool classof(const Fact *F) { return F->getKind() == WritePath; }
+
+  WritePathFact(const clang::ValueDecl *T, SourceLocation L)
+      : Fact(WritePath), Target(T), Loc(L) {}
+  const clang::ValueDecl *getTarget() const { return Target; }
+  SourceLocation getWriteLoc() const { return Loc; }
+
+  void dump(llvm::raw_ostream &OS) const override {
+    OS << "WritePath (" << Target->getNameAsString() << ")\n";
+  }
+};
+
 // ========================================================================= //
 //                      Loan and Origin Managers
 // ========================================================================= //
@@ -233,6 +276,7 @@ public:
 class OriginManager {
   OriginID NextID{0};
   llvm::DenseMap<const clang::ValueDecl *, OriginID> DeclToOrigin;
+  llvm::DenseSet<unsigned> ExclusiveOrigins;
 
 public:
   OriginID getOrCreate(const clang::ValueDecl &D) {
@@ -242,6 +286,14 @@ public:
     OriginID ID = NextID++;
     DeclToOrigin[&D] = ID;
     return ID;
+  }
+
+  /// Mark an origin as coming from an exclusive tracked reference.
+  void markExclusive(OriginID OID) { ExclusiveOrigins.insert(OID.Value); }
+
+  /// Check if an origin is from an exclusive tracked reference.
+  bool isExclusive(OriginID OID) const {
+    return ExclusiveOrigins.count(OID.Value);
   }
 
   unsigned getNumOrigins() const { return NextID.Value; }
@@ -262,6 +314,7 @@ public:
   LoanManager &getLoanMgr() { return LoanMgr; }
   const LoanManager &getLoanMgr() const { return LoanMgr; }
   OriginManager &getOriginMgr() { return OriginMgr; }
+  const OriginManager &getOriginMgr() const { return OriginMgr; }
 
   template <typename T, typename... Args> T *createFact(Args &&...args) {
     void *Mem = FactAllocator.Allocate<T>();
@@ -395,8 +448,12 @@ private:
     // Handle tracked-ref declaration and assignment patterns.
     if (const auto *DS = dyn_cast<DeclStmt>(S))
       handleDeclStmt(DS);
-    else if (const auto *BO = dyn_cast<BinaryOperator>(S))
+    else if (const auto *BO = dyn_cast<BinaryOperator>(S)) {
       handleBinaryOp(BO);
+      // Detect write-while-borrowed: assignment to a non-tracked-ref variable
+      // that might have active loans on it.
+      handleWriteToLocal(BO);
+    }
     else if (const auto *RS = dyn_cast<ReturnStmt>(S))
       handleReturn(RS);
 
@@ -421,6 +478,8 @@ private:
       if (BorrowedVD) {
         BorrowKind Kind = getTrackedRefBorrowKind(VD->getType());
         OriginID OID = FM.getOriginMgr().getOrCreate(*VD);
+        if (Kind == BorrowKind::Exclusive)
+          FM.getOriginMgr().markExclusive(OID);
         AccessPath Path(BorrowedVD);
         Loan &L = FM.getLoanMgr().addLoan(Path, Kind,
                                           AddrOfExpr->getOperatorLoc());
@@ -431,8 +490,11 @@ private:
 
       // Case 2: T^ r = q  →  AssignOriginFact(origin(r), origin(q))
       if (const VarDecl *SrcVD = findTrackedRefVar(Init)) {
+        BorrowKind Kind = getTrackedRefBorrowKind(VD->getType());
         OriginID DstOID = FM.getOriginMgr().getOrCreate(*VD);
         OriginID SrcOID = FM.getOriginMgr().getOrCreate(*SrcVD);
+        if (Kind == BorrowKind::Exclusive)
+          FM.getOriginMgr().markExclusive(DstOID);
         CurrentBlockFacts.push_back(
             FM.createFact<AssignOriginFact>(DstOID, SrcOID));
       }
@@ -455,6 +517,8 @@ private:
     if (BorrowedVD) {
       BorrowKind Kind = getTrackedRefBorrowKind(LhsVD->getType());
       OriginID OID = FM.getOriginMgr().getOrCreate(*LhsVD);
+      if (Kind == BorrowKind::Exclusive)
+        FM.getOriginMgr().markExclusive(OID);
       AccessPath Path(BorrowedVD);
       Loan &L = FM.getLoanMgr().addLoan(Path, Kind,
                                         AddrOfExpr->getOperatorLoc());
@@ -465,8 +529,11 @@ private:
 
     // Case 2: r = q  →  AssignOriginFact
     if (const VarDecl *SrcVD = findTrackedRefVar(BO->getRHS())) {
+      BorrowKind Kind = getTrackedRefBorrowKind(LhsVD->getType());
       OriginID DstOID = FM.getOriginMgr().getOrCreate(*LhsVD);
       OriginID SrcOID = FM.getOriginMgr().getOrCreate(*SrcVD);
+      if (Kind == BorrowKind::Exclusive)
+        FM.getOriginMgr().markExclusive(DstOID);
       CurrentBlockFacts.push_back(
           FM.createFact<AssignOriginFact>(DstOID, SrcOID));
     }
@@ -480,6 +547,27 @@ private:
         emitUse(OID, RS->getReturnLoc());
       }
     }
+  }
+
+  /// Detect writes to local variables that may have loans.
+  /// e.g. x = 42 when there's an outstanding borrow r = &x.
+  void handleWriteToLocal(const BinaryOperator *BO) {
+    if (!BO->isAssignmentOp())
+      return;
+    // Skip if LHS is a tracked-ref variable (that's an origin update, not
+    // a write to a borrowed-from path).
+    const Expr *LHS = BO->getLHS()->IgnoreParenImpCasts();
+    // Check for direct assignment: x = ...
+    if (const auto *DRE = dyn_cast<DeclRefExpr>(LHS)) {
+      const auto *VD = dyn_cast<VarDecl>(DRE->getDecl());
+      if (VD && VD->hasLocalStorage() && !hasTrackedRefOrigin(VD->getType())) {
+        CurrentBlockFacts.push_back(
+            FM.createFact<WritePathFact>(VD, BO->getOperatorLoc()));
+      }
+    }
+    // Check for dereference assignment: *r = ... where r is a tracked-ref
+    // pointing at a borrowed variable. This is handled via UseOriginFact
+    // (the dereference is a use of the origin, which is caught by scanForUses).
   }
 
   /// Recursively scan an expression tree for tracked-ref uses.
@@ -502,11 +590,19 @@ private:
     }
 
     // Function call with tracked-ref argument: f(r)
+    // For exclusive refs passed by value → MoveOriginFact (consumed)
+    // For shared refs passed by value → UseOriginFact
     if (const auto *CE = dyn_cast<CallExpr>(S)) {
       for (const Expr *Arg : CE->arguments()) {
         if (const VarDecl *VD = findTrackedRefVar(Arg)) {
           OriginID OID = FM.getOriginMgr().getOrCreate(*VD);
-          emitUse(OID, CE->getBeginLoc());
+          if (getTrackedRefBorrowKind(VD->getType()) ==
+              BorrowKind::Exclusive) {
+            // Passing an exclusive ref by value = move (consume).
+            emitMove(OID, CE->getBeginLoc());
+          } else {
+            emitUse(OID, CE->getBeginLoc());
+          }
         }
       }
     }
@@ -540,6 +636,12 @@ private:
   void emitUse(OriginID OID, SourceLocation Loc) {
     if (UsesEmittedThisStmt.insert(OID.Value).second)
       CurrentBlockFacts.push_back(FM.createFact<UseOriginFact>(OID, Loc));
+  }
+
+  /// Emit a MoveOriginFact, deduplicating within the current CFGStmt.
+  void emitMove(OriginID OID, SourceLocation Loc) {
+    if (UsesEmittedThisStmt.insert(OID.Value).second)
+      CurrentBlockFacts.push_back(FM.createFact<MoveOriginFact>(OID, Loc));
   }
 
   /// Handle CFGLifetimeEnds: emit ExpireFact for each loan on the dying var.
@@ -680,6 +782,19 @@ private:
         Live.set(Idx); // gen: origin is used here.
       break;
     }
+    case Fact::MoveOrigin: {
+      // A move is a use (gen) then a kill — but for liveness purposes,
+      // a move makes the origin live before it (we need to know the origin
+      // was consumed). After the move, the origin is dead (killed).
+      auto *M = F->getAs<MoveOriginFact>();
+      unsigned Idx = M->getOriginID().Value;
+      if (Idx < NumOrigins) {
+        Live.reset(Idx); // kill: origin is consumed by the move.
+        Live.set(Idx);   // gen: origin must be live to be moved.
+        // Net effect: Live.set(Idx) — move requires origin to be live.
+      }
+      break;
+    }
     case Fact::AssignOrigin: {
       auto *A = F->getAs<AssignOriginFact>();
       unsigned DstIdx = A->getDestOriginID().Value;
@@ -698,6 +813,7 @@ private:
       break;
     }
     case Fact::Expire:
+    case Fact::WritePath:
       // No effect on origin liveness.
       break;
     }
@@ -868,12 +984,200 @@ private:
       return LoanLattice(Factory.OriginMapFact.add(
           In.Origins, A->getDestOriginID(), SrcLoans));
     }
+    case Fact::MoveOrigin: {
+      // A move kills the origin's loans (the ref is consumed).
+      auto *M = F->getAs<MoveOriginFact>();
+      return LoanLattice(Factory.OriginMapFact.remove(
+          In.Origins, M->getOriginID()));
+    }
     case Fact::Expire:
     case Fact::UseOrigin:
+    case Fact::WritePath:
       // No effect on the loan lattice.
       return In;
     }
     llvm_unreachable("Unknown fact kind");
+  }
+};
+
+// ========================================================================= //
+//                Phase 2b: Forward Move State Tracking
+// ========================================================================= //
+
+/// Three-valued move state for each exclusive origin.
+enum class MoveState : uint8_t {
+  Valid,      // Initialized and not moved.
+  Moved,      // Definitively moved on all reaching paths.
+  MaybeMoved, // Moved on some paths but not all.
+};
+
+/// Join two move states at a CFG merge point.
+static MoveState joinMoveState(MoveState A, MoveState B) {
+  if (A == B)
+    return A;
+  return MoveState::MaybeMoved;
+}
+
+/// Per-origin move state and the location of the (first) move.
+struct OriginMoveInfo {
+  MoveState State = MoveState::Moved; // Default to Moved (uninitialized).
+  SourceLocation MoveLoc;             // Where the move happened.
+
+  bool operator==(const OriginMoveInfo &O) const {
+    return State == O.State && MoveLoc == O.MoveLoc;
+  }
+  bool operator!=(const OriginMoveInfo &O) const { return !(*this == O); }
+};
+
+/// Forward move-state analysis per CFGBlock.
+///
+/// Tracks which exclusive origins have been moved, handling CFG merge
+/// points with the three-valued lattice join.
+class ForwardMoveTracking {
+  const CFG &Cfg;
+  const FactManager &FM;
+
+  using MoveMap = llvm::DenseMap<unsigned, OriginMoveInfo>;
+
+  llvm::DenseMap<const CFGBlock *, MoveMap> BlockEntryStates;
+  llvm::DenseMap<const CFGBlock *, MoveMap> BlockExitStates;
+
+  /// Tracks which blocks have had their entry state set by at least one
+  /// predecessor. Distinguishes "not yet reached" from "reached with empty
+  /// state".
+  llvm::DenseSet<const CFGBlock *> Reached;
+
+public:
+  ForwardMoveTracking(const CFG &C, const FactManager &F)
+      : Cfg(C), FM(F) {}
+
+  void run() {
+    llvm::SmallVector<const CFGBlock *, 16> Worklist;
+    llvm::DenseSet<const CFGBlock *> InWorklist;
+
+    // Seed from the entry block.
+    const CFGBlock &Entry = Cfg.getEntry();
+    Worklist.push_back(&Entry);
+    InWorklist.insert(&Entry);
+    Reached.insert(&Entry);
+
+    while (!Worklist.empty()) {
+      const CFGBlock *B = Worklist.pop_back_val();
+      InWorklist.erase(B);
+
+      MoveMap EntryState = getEntryState(B);
+      MoveMap ExitState = transferBlock(B, EntryState);
+      BlockExitStates[B] = ExitState;
+
+      for (const CFGBlock *Succ : B->succs()) {
+        if (!Succ)
+          continue;
+
+        bool FirstReach = Reached.insert(Succ).second;
+        if (FirstReach) {
+          // First predecessor to reach this block — set state directly.
+          BlockEntryStates[Succ] = ExitState;
+          if (!InWorklist.count(Succ)) {
+            Worklist.push_back(Succ);
+            InWorklist.insert(Succ);
+          }
+        } else {
+          // Already reached — join with existing entry state.
+          MoveMap OldEntry = getEntryState(Succ);
+          MoveMap NewEntry = joinStates(OldEntry, ExitState);
+          if (NewEntry != OldEntry) {
+            BlockEntryStates[Succ] = NewEntry;
+            if (!InWorklist.count(Succ)) {
+              Worklist.push_back(Succ);
+              InWorklist.insert(Succ);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  MoveMap getEntryState(const CFGBlock *B) const {
+    auto It = BlockEntryStates.find(B);
+    return It != BlockEntryStates.end() ? It->second : MoveMap{};
+  }
+
+  /// Get the move info for an origin at a block's entry.
+  OriginMoveInfo getOriginState(const CFGBlock *B, OriginID OID) const {
+    auto It = BlockEntryStates.find(B);
+    if (It != BlockEntryStates.end()) {
+      auto OIt = It->second.find(OID.Value);
+      if (OIt != It->second.end())
+        return OIt->second;
+    }
+    // Not in the map → uninitialized → Moved.
+    return OriginMoveInfo{MoveState::Moved, SourceLocation()};
+  }
+
+private:
+  MoveMap transferBlock(const CFGBlock *B, MoveMap State) {
+    for (const Fact *F : FM.getFacts(B))
+      applyFact(State, F);
+    return State;
+  }
+
+  void applyFact(MoveMap &State, const Fact *F) {
+    switch (F->getKind()) {
+    case Fact::Issue: {
+      // IssueFact: origin is (re)initialized with a new loan → Valid.
+      auto *I = F->getAs<IssueFact>();
+      unsigned Idx = I->getOriginID().Value;
+      if (FM.getOriginMgr().isExclusive(I->getOriginID()))
+        State[Idx] = OriginMoveInfo{MoveState::Valid, SourceLocation()};
+      break;
+    }
+    case Fact::AssignOrigin: {
+      // AssignOriginFact: destination gets source's state.
+      // But for the destination, it's a re-initialization → Valid.
+      auto *A = F->getAs<AssignOriginFact>();
+      unsigned DstIdx = A->getDestOriginID().Value;
+      if (FM.getOriginMgr().isExclusive(A->getDestOriginID()))
+        State[DstIdx] = OriginMoveInfo{MoveState::Valid, SourceLocation()};
+      break;
+    }
+    case Fact::MoveOrigin: {
+      auto *M = F->getAs<MoveOriginFact>();
+      unsigned Idx = M->getOriginID().Value;
+      State[Idx] = OriginMoveInfo{MoveState::Moved, M->getMoveLoc()};
+      break;
+    }
+    default:
+      break;
+    }
+  }
+
+  MoveMap joinStates(const MoveMap &A, const MoveMap &B) {
+    MoveMap Result = A;
+    for (const auto &Entry : B) {
+      auto It = Result.find(Entry.first);
+      if (It == Result.end()) {
+        // Origin only in B → A path didn't track it (= Moved/uninitialized).
+        MoveState Joined = joinMoveState(MoveState::Moved, Entry.second.State);
+        Result[Entry.first] = OriginMoveInfo{Joined, Entry.second.MoveLoc};
+      } else {
+        // Origin in both → join states.
+        MoveState Joined = joinMoveState(It->second.State, Entry.second.State);
+        SourceLocation Loc = It->second.MoveLoc.isValid()
+                                 ? It->second.MoveLoc
+                                 : Entry.second.MoveLoc;
+        It->second = OriginMoveInfo{Joined, Loc};
+      }
+    }
+    // Origins only in A are already in Result. But we need to consider
+    // that any origin in A but not in B is Moved on B's path (uninitialized).
+    for (auto &Entry : Result) {
+      if (B.count(Entry.first) == 0) {
+        // Origin only in A → join with Moved (B path didn't initialize).
+        MoveState Joined = joinMoveState(Entry.second.State, MoveState::Moved);
+        Entry.second.State = Joined;
+      }
+    }
+    return Result;
   }
 };
 
@@ -888,13 +1192,17 @@ class ErrorDetector {
   const FactManager &FM;
   const BackwardLiveness &Liveness;
   ForwardLoanPropagation &Loans;
+  const ForwardMoveTracking &MoveTracking;
   MizarBorrowCheckHandler &Handler;
+
+  using MoveMap = llvm::DenseMap<unsigned, OriginMoveInfo>;
 
 public:
   ErrorDetector(const CFG &C, const FactManager &F,
                 const BackwardLiveness &L, ForwardLoanPropagation &P,
+                const ForwardMoveTracking &MT,
                 MizarBorrowCheckHandler &H)
-      : Cfg(C), FM(F), Liveness(L), Loans(P), Handler(H) {}
+      : Cfg(C), FM(F), Liveness(L), Loans(P), MoveTracking(MT), Handler(H) {}
 
   void run() {
     for (const CFGBlock *B : Cfg) {
@@ -917,6 +1225,9 @@ private:
     // Replay forward loan state through the block.
     LoanLattice State = Loans.getEntryState(B);
 
+    // Replay forward move state through the block.
+    MoveMap MState = MoveTracking.getEntryState(B);
+
     for (unsigned I = 0; I < Facts.size(); ++I) {
       const Fact *F = Facts[I];
 
@@ -927,12 +1238,20 @@ private:
       case Fact::Expire:
         checkExpireFact(F->getAs<ExpireFact>(), State, LiveBefore[I], B, I);
         break;
+      case Fact::UseOrigin:
+        checkUseOriginFact(F->getAs<UseOriginFact>(), MState);
+        break;
+      case Fact::WritePath:
+        checkWritePathFact(F->getAs<WritePathFact>(), State, LiveBefore[I]);
+        break;
       default:
         break;
       }
 
       // Advance the loan state through this fact.
       State = applyTransfer(State, F);
+      // Advance the move state through this fact.
+      applyMoveTransfer(MState, F);
     }
   }
 
@@ -1055,9 +1374,83 @@ private:
     }
     case Fact::Expire:
     case Fact::UseOrigin:
+    case Fact::MoveOrigin:
+    case Fact::WritePath:
       return In;
     }
     llvm_unreachable("Unknown fact kind");
+  }
+
+  /// Check a UseOriginFact against the current move state.
+  void checkUseOriginFact(const UseOriginFact *Use, const MoveMap &MState) {
+    OriginID OID = Use->getOriginID();
+    if (!FM.getOriginMgr().isExclusive(OID))
+      return;
+
+    auto It = MState.find(OID.Value);
+    if (It == MState.end())
+      return; // Not tracked yet → Valid (freshly declared inline).
+
+    const OriginMoveInfo &Info = It->second;
+    switch (Info.State) {
+    case MoveState::Valid:
+      break;
+    case MoveState::Moved:
+      Handler.handleUseAfterMove(Use->getUseLoc(), Info.MoveLoc);
+      break;
+    case MoveState::MaybeMoved:
+      Handler.handleUseAfterMaybeMove(Use->getUseLoc(), Info.MoveLoc);
+      break;
+    }
+  }
+
+  /// Check a WritePathFact: writing to a local while an origin borrows it.
+  void checkWritePathFact(const WritePathFact *WF, const LoanLattice &State,
+                          const llvm::BitVector &Live) {
+    const ValueDecl *WrittenVar = WF->getTarget();
+
+    for (const auto &Entry : State.Origins) {
+      OriginID OID = Entry.first;
+      if (OID.Value >= Live.size() || !Live[OID.Value])
+        continue;
+
+      for (LoanID LID : Entry.second) {
+        const Loan &L = FM.getLoanMgr().getLoan(LID);
+        if (L.Path.D == WrittenVar) {
+          Handler.handleWriteWhileBorrowed(WF->getWriteLoc(), WrittenVar,
+                                           L.IssueLoc);
+          return;
+        }
+      }
+    }
+  }
+
+  /// Apply the forward move-state transfer function for a single fact.
+  void applyMoveTransfer(MoveMap &MState, const Fact *F) {
+    switch (F->getKind()) {
+    case Fact::Issue: {
+      auto *I = F->getAs<IssueFact>();
+      if (FM.getOriginMgr().isExclusive(I->getOriginID()))
+        MState[I->getOriginID().Value] =
+            OriginMoveInfo{MoveState::Valid, SourceLocation()};
+      break;
+    }
+    case Fact::AssignOrigin: {
+      auto *A = F->getAs<AssignOriginFact>();
+      if (FM.getOriginMgr().isExclusive(A->getDestOriginID()))
+        MState[A->getDestOriginID().Value] =
+            OriginMoveInfo{MoveState::Valid, SourceLocation()};
+      break;
+    }
+    case Fact::MoveOrigin: {
+      auto *M = F->getAs<MoveOriginFact>();
+      MState[M->getOriginID().Value] =
+          OriginMoveInfo{MoveState::Moved, M->getMoveLoc()};
+      break;
+    }
+    default:
+      break;
+    }
   }
 };
 
@@ -1102,12 +1495,16 @@ void runMizarBorrowCheck(const FunctionDecl &FD, ASTContext &Ctx,
   BackwardLiveness Liveness(*Cfg, FM, NumOrigins);
   Liveness.run();
 
-  // Phase 2: Forward loan propagation with NLL filtering.
+  // Phase 2a: Forward loan propagation with NLL filtering.
   ForwardLoanPropagation LoanProp(*Cfg, FM, Liveness);
   LoanProp.run();
 
+  // Phase 2b: Forward move-state tracking.
+  ForwardMoveTracking MoveTrack(*Cfg, FM);
+  MoveTrack.run();
+
   // Phase 3: Error detection.
-  ErrorDetector Detector(*Cfg, FM, Liveness, LoanProp, Handler);
+  ErrorDetector Detector(*Cfg, FM, Liveness, LoanProp, MoveTrack, Handler);
   Detector.run();
 }
 

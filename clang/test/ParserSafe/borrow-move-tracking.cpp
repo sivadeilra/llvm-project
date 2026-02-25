@@ -22,7 +22,7 @@ void test_use_after_move() safe {
   int x = 10;
   int^ mut r = &x;
   consume(r);     // moves r
-  *r = 42;        // expected-error {{use of exclusive borrow after move}}
+  *r = 42;        // expected-warning {{use of exclusive borrow after move}}
                   // expected-note@-2 {{value moved here}}
 }
 
@@ -37,7 +37,7 @@ void test_maybe_moved(bool cond) safe {
     consume(r);   // moves r on this path
   }
   // merge point: r is MaybeMoved
-  *r = 42;        // expected-error {{use of exclusive borrow that may have been moved}}
+  *r = 42;        // expected-warning {{use of exclusive borrow that may have been moved}}
                   // expected-note@-4 {{value moved here}}
 }
 
@@ -51,10 +51,10 @@ void test_moved_both_branches(bool cond) safe {
   if (cond) {
     consume(r);   // moves r
   } else {
-    consume(r);   // also moves r
+    consume(r);   // also moves r              // expected-note {{value moved here}}
   }
   // merge point: r is Moved (both paths moved)
-  *r = 42;        // expected-error {{use of exclusive borrow after move}}
+  *r = 42;        // expected-warning {{use of exclusive borrow after move}}
 }
 
 // ==========================================================================
@@ -112,7 +112,7 @@ void test_conditional_init(bool cond) safe {
     r = &x;               // Initialized on this path
   }
   // merge: join(Initialized, Moved) = MaybeMoved
-  *r = 42;        // expected-error {{use of exclusive borrow that may have been moved}}
+  *r = 42;        // expected-warning {{use of exclusive borrow that may have been moved}}
 }
 
 // ==========================================================================
@@ -125,10 +125,11 @@ void test_nested_conditionals(bool a, bool b) safe {
   if (a) {
     if (b) {
       consume(r);          // moved only on (a && b) path
+                           // expected-note@-1 {{value moved here}}
     }
   }
   // outer merge: join(MaybeMoved, Initialized) = MaybeMoved
-  *r = 42;        // expected-error {{use of exclusive borrow that may have been moved}}
+  *r = 42;        // expected-warning {{use of exclusive borrow that may have been moved}}
 }
 
 // ==========================================================================
@@ -140,12 +141,12 @@ void test_move_in_loop(bool cond) safe {
   int x = 10;
   int^ mut r = &x;
   while (cond) {
-    consume(r);   // moves r inside loop
+    consume(r);   // moves r inside loop          // expected-note {{value moved here}}
     // If the loop runs even once, r is Moved.
     // After loop: join(Initialized (never entered), Moved) = MaybeMoved
     break;
   }
-  *r = 42;        // expected-error {{use of exclusive borrow that may have been moved}}
+  *r = 42;        // expected-warning {{use of exclusive borrow that may have been moved}}
 }
 
 // ==========================================================================
@@ -172,7 +173,7 @@ void test_move_in_switch(int sel) safe {
   int^ mut r = &x;
   switch (sel) {
     case 0:
-      consume(r); // moves r
+      consume(r); // moves r                      // expected-note {{value moved here}}
       break;
     case 1:
       *r = 20;    // uses r, no move
@@ -181,7 +182,7 @@ void test_move_in_switch(int sel) safe {
       break;      // r untouched
   }
   // merge: join(Moved, Initialized, Initialized) = MaybeMoved
-  *r = 42;        // expected-error {{use of exclusive borrow that may have been moved}}
+  *r = 42;        // expected-warning {{use of exclusive borrow that may have been moved}}
 }
 
 // ==========================================================================
@@ -194,9 +195,9 @@ void test_independent_refs(bool cond) safe {
   int^ mut r1 = &x;
   int^ mut r2 = &y;
   if (cond) {
-    consume(r1);  // moves r1
+    consume(r1);  // moves r1                     // expected-note {{value moved here}}
   }
   // r1 is MaybeMoved, r2 is still Initialized
   *r2 = 42;       // OK — r2 was never moved
-  *r1 = 42;       // expected-error {{use of exclusive borrow that may have been moved}}
+  *r1 = 42;       // expected-warning {{use of exclusive borrow that may have been moved}}
 }

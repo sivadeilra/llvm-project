@@ -3062,6 +3062,29 @@ void clang::sema::AnalysisBasedWarnings::IssueWarnings(
             SemaRef.Diag(UseLoc, diag::note_mizar_borrow_used_here)
                 << BorrowIsExclusive;
         }
+
+        void handleUseAfterMove(SourceLocation UseLoc,
+                                SourceLocation MoveLoc) override {
+          SemaRef.Diag(UseLoc, diag::warn_mizar_use_after_move);
+          if (MoveLoc.isValid())
+            SemaRef.Diag(MoveLoc, diag::note_mizar_moved_here);
+        }
+
+        void handleUseAfterMaybeMove(SourceLocation UseLoc,
+                                     SourceLocation MoveLoc) override {
+          SemaRef.Diag(UseLoc, diag::warn_mizar_use_after_maybe_move);
+          if (MoveLoc.isValid())
+            SemaRef.Diag(MoveLoc, diag::note_mizar_moved_here);
+        }
+
+        void handleWriteWhileBorrowed(SourceLocation WriteLoc,
+                                      const NamedDecl *Var,
+                                      SourceLocation BorrowLoc) override {
+          SemaRef.Diag(WriteLoc, diag::warn_mizar_write_while_borrowed)
+              << Var;
+          SemaRef.Diag(BorrowLoc, diag::note_mizar_borrow_still_live)
+              << Var;
+        }
       };
 
       SemaBorrowHandler Handler(S);

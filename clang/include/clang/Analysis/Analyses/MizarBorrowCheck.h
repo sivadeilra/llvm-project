@@ -68,6 +68,30 @@ struct MizarBorrowCheckHandler {
                                            SourceLocation BorrowLoc,
                                            bool BorrowIsExclusive,
                                            SourceLocation UseLoc) = 0;
+
+  /// An exclusive tracked reference is used after being definitively moved.
+  ///
+  /// \param UseLoc   Where the moved-from reference is used.
+  /// \param MoveLoc  Where the reference was moved.
+  virtual void handleUseAfterMove(SourceLocation UseLoc,
+                                  SourceLocation MoveLoc) = 0;
+
+  /// An exclusive tracked reference is used after being possibly moved
+  /// (moved on some but not all control flow paths).
+  ///
+  /// \param UseLoc   Where the maybe-moved reference is used.
+  /// \param MoveLoc  Where a move occurred (one of possibly several).
+  virtual void handleUseAfterMaybeMove(SourceLocation UseLoc,
+                                       SourceLocation MoveLoc) = 0;
+
+  /// A variable is assigned while a borrow (loan) of it is still live.
+  ///
+  /// \param WriteLoc   Where the write to the borrowed variable occurs.
+  /// \param Var        The variable being written to.
+  /// \param BorrowLoc  Where the conflicting borrow was created.
+  virtual void handleWriteWhileBorrowed(SourceLocation WriteLoc,
+                                        const NamedDecl *Var,
+                                        SourceLocation BorrowLoc) = 0;
 };
 
 /// Run the Mizar NLL borrow checker on a function.

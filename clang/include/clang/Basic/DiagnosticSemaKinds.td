@@ -13521,11 +13521,21 @@ def warn_mizar_write_while_borrowed
 def warn_mizar_does_not_live_long_enough
     : Warning<"%0 does not live long enough">,
       InGroup<MizarSafety>;
+def warn_mizar_use_after_move
+    : Warning<"use of exclusive borrow after move">,
+      InGroup<MizarSafety>;
+def warn_mizar_use_after_maybe_move
+    : Warning<"use of exclusive borrow that may have been moved">,
+      InGroup<MizarSafety>;
 def note_mizar_borrow_created_here
     : Note<"%select{shared|exclusive}0 borrow of %1 created here">;
 def note_mizar_borrow_used_here
     : Note<"%select{shared|exclusive}0 borrow used here">;
 def note_mizar_dropped_here
     : Note<"%0 dropped here while still borrowed">;
+def note_mizar_moved_here
+    : Note<"value moved here">;
+def note_mizar_borrow_still_live
+    : Note<"borrow of %0 is still live">;
 
 } // end of sema component.
