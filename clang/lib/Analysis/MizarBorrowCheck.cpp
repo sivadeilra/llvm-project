@@ -590,19 +590,15 @@ private:
     }
 
     // Function call with tracked-ref argument: f(r)
-    // For exclusive refs passed by value → MoveOriginFact (consumed)
-    // For shared refs passed by value → UseOriginFact
+    // Passing a tracked reference (shared or exclusive) to a function creates
+    // an implicit reborrow (§9.7). The callee gets a fresh borrow derived
+    // from the caller's reference; the caller's reference remains valid
+    // after the call returns. This is a use, not a move.
     if (const auto *CE = dyn_cast<CallExpr>(S)) {
       for (const Expr *Arg : CE->arguments()) {
         if (const VarDecl *VD = findTrackedRefVar(Arg)) {
           OriginID OID = FM.getOriginMgr().getOrCreate(*VD);
-          if (getTrackedRefBorrowKind(VD->getType()) ==
-              BorrowKind::Exclusive) {
-            // Passing an exclusive ref by value = move (consume).
-            emitMove(OID, CE->getBeginLoc());
-          } else {
-            emitUse(OID, CE->getBeginLoc());
-          }
+          emitUse(OID, CE->getBeginLoc());
         }
       }
     }
