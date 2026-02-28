@@ -184,6 +184,8 @@ unsigned TemplateParameterList::getMinRequiredArguments() const {
     } else if (const auto *NTTP = dyn_cast<NonTypeTemplateParmDecl>(P)) {
       if (NTTP->hasDefaultArgument())
         break;
+    } else if (isa<LifetimeParmDecl>(P)) {
+      // Lifetime parameters have no default arguments (yet).
     } else if (cast<TemplateTemplateParmDecl>(P)->hasDefaultArgument())
       break;
 
@@ -202,6 +204,8 @@ unsigned TemplateParameterList::getDepth() const {
     return TTP->getDepth();
   else if (const auto *NTTP = dyn_cast<NonTypeTemplateParmDecl>(FirstParm))
     return NTTP->getDepth();
+  else if (const auto *LPD = dyn_cast<LifetimeParmDecl>(FirstParm))
+    return LPD->getDepth();
   else
     return cast<TemplateTemplateParmDecl>(FirstParm)->getDepth();
 }
@@ -706,6 +710,26 @@ TemplateTypeParmDecl::CreateDeserialized(const ASTContext &C, GlobalDeclID ID,
               additionalSizeToAlloc<TypeConstraint>(HasTypeConstraint ? 1 : 0))
       TemplateTypeParmDecl(nullptr, SourceLocation(), SourceLocation(), nullptr,
                            false, HasTypeConstraint, std::nullopt);
+}
+
+//===----------------------------------------------------------------------===//
+// LifetimeParmDecl
+//===----------------------------------------------------------------------===//
+
+LifetimeParmDecl *LifetimeParmDecl::Create(const ASTContext &C,
+                                             DeclContext *DC,
+                                             SourceLocation LifetimeKWLoc,
+                                             SourceLocation NameLoc,
+                                             IdentifierInfo *Name, unsigned D,
+                                             unsigned P) {
+  return new (C, DC)
+      LifetimeParmDecl(DC, LifetimeKWLoc, NameLoc, Name, D, P);
+}
+
+LifetimeParmDecl *LifetimeParmDecl::CreateDeserialized(const ASTContext &C,
+                                                         GlobalDeclID ID) {
+  return new (C, ID) LifetimeParmDecl(nullptr, SourceLocation(),
+                                       SourceLocation(), nullptr, 0, 0);
 }
 
 SourceLocation TemplateTypeParmDecl::getDefaultArgumentLoc() const {

@@ -2772,6 +2772,13 @@ void TextNodeDumper::VisitTemplateTypeParmDecl(const TemplateTypeParmDecl *D) {
   dumpName(D);
 }
 
+void TextNodeDumper::VisitLifetimeParmDecl(const LifetimeParmDecl *D) {
+  OS << " lifetime";
+  OS << " depth " << D->getDepth() << " index " << D->getIndex();
+  if (D->getDeclName())
+    OS << " @" << D->getDeclName().getAsIdentifierInfo()->getName();
+}
+
 void TextNodeDumper::VisitNonTypeTemplateParmDecl(
     const NonTypeTemplateParmDecl *D) {
   dumpType(D->getType());

@@ -111,6 +111,7 @@ namespace {
     void VisitOMPCapturedExprDecl(OMPCapturedExprDecl *D);
     void VisitTemplateTypeParmDecl(const TemplateTypeParmDecl *TTP);
     void VisitNonTypeTemplateParmDecl(const NonTypeTemplateParmDecl *NTTP);
+    void VisitLifetimeParmDecl(const LifetimeParmDecl *D);
     void VisitHLSLBufferDecl(HLSLBufferDecl *D);
 
     void VisitOpenACCDeclareDecl(OpenACCDeclareDecl *D);
@@ -1219,6 +1220,8 @@ void DeclPrinter::printTemplateParameters(const TemplateParameterList *Params,
     } else if (auto TTPD = dyn_cast<TemplateTemplateParmDecl>(Param)) {
       VisitTemplateDecl(TTPD);
       // FIXME: print the default argument, if present.
+    } else if (auto LPD = dyn_cast<LifetimeParmDecl>(Param)) {
+      VisitLifetimeParmDecl(LPD);
     }
   }
 
@@ -1929,6 +1932,12 @@ void DeclPrinter::VisitTemplateTypeParmDecl(const TemplateTypeParmDecl *TTP) {
     TTP->getDefaultArgument().getArgument().print(Policy, Out,
                                                   /*IncludeType=*/false);
   }
+}
+
+void DeclPrinter::VisitLifetimeParmDecl(const LifetimeParmDecl *D) {
+  Out << "lifetime";
+  if (D->getDeclName())
+    Out << ' ' << D->getDeclName();
 }
 
 void DeclPrinter::VisitNonTypeTemplateParmDecl(

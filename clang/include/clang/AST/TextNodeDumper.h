@@ -381,6 +381,7 @@ public:
   void VisitBuiltinTemplateDecl(const BuiltinTemplateDecl *D);
   void VisitVarTemplateDecl(const VarTemplateDecl *D);
   void VisitTemplateTypeParmDecl(const TemplateTypeParmDecl *D);
+  void VisitLifetimeParmDecl(const LifetimeParmDecl *D);
   void VisitNonTypeTemplateParmDecl(const NonTypeTemplateParmDecl *D);
   void VisitTemplateTemplateParmDecl(const TemplateTemplateParmDecl *D);
   void VisitUsingDecl(const UsingDecl *D);

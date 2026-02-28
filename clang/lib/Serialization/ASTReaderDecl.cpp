@@ -355,6 +355,7 @@ public:
   void VisitVarTemplatePartialSpecializationDecl(
       VarTemplatePartialSpecializationDecl *D);
   void VisitTemplateTypeParmDecl(TemplateTypeParmDecl *D);
+  void VisitLifetimeParmDecl(LifetimeParmDecl *D);
   void VisitValueDecl(ValueDecl *VD);
   void VisitEnumConstantDecl(EnumConstantDecl *ECD);
   void VisitUnresolvedUsingValueDecl(UnresolvedUsingValueDecl *D);
@@ -2716,6 +2717,11 @@ void ASTDeclReader::VisitTemplateTypeParmDecl(TemplateTypeParmDecl *D) {
                           Record.readTemplateArgumentLoc());
 }
 
+void ASTDeclReader::VisitLifetimeParmDecl(LifetimeParmDecl *D) {
+  VisitNamedDecl(D);
+  // TODO: Read depth, position, keyword loc when lifetime serialization is needed.
+}
+
 void ASTDeclReader::VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D) {
   VisitDeclaratorDecl(D);
   // TemplateParmPosition.
@@ -4043,6 +4049,9 @@ Decl *ASTReader::ReadDeclRecord(GlobalDeclID ID) {
                                                  HasTypeConstraint);
     break;
   }
+  case DECL_LIFETIME_PARM:
+    D = LifetimeParmDecl::CreateDeserialized(Context, ID);
+    break;
   case DECL_NON_TYPE_TEMPLATE_PARM: {
     bool HasTypeConstraint = Record.readInt();
     D = NonTypeTemplateParmDecl::CreateDeserialized(Context, ID,

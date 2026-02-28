@@ -1448,6 +1448,9 @@ enum DeclCode {
   /// A TemplateTypeParmDecl record.
   DECL_TEMPLATE_TYPE_PARM,
 
+  /// A LifetimeParmDecl record (Mizar lifetime template parameter).
+  DECL_LIFETIME_PARM,
+
   /// A NonTypeTemplateParmDecl record.
   DECL_NON_TYPE_TEMPLATE_PARM,
 

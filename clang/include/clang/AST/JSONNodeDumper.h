@@ -264,6 +264,7 @@ public:
   void VisitTemplateTypeParmDecl(const TemplateTypeParmDecl *D);
   void VisitNonTypeTemplateParmDecl(const NonTypeTemplateParmDecl *D);
   void VisitTemplateTemplateParmDecl(const TemplateTemplateParmDecl *D);
+  void VisitLifetimeParmDecl(const LifetimeParmDecl *D);
   void VisitLinkageSpecDecl(const LinkageSpecDecl *LSD);
   void VisitAccessSpecDecl(const AccessSpecDecl *ASD);
   void VisitFriendDecl(const FriendDecl *FD);

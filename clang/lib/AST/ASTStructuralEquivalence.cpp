@@ -2262,6 +2262,16 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
 }
 
 static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
+                                     LifetimeParmDecl *D1,
+                                     LifetimeParmDecl *D2) {
+  if (!Context.IgnoreTemplateParmDepth && D1->getDepth() != D2->getDepth())
+    return false;
+  if (D1->getIndex() != D2->getIndex())
+    return false;
+  return true;
+}
+
+static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                      NonTypeTemplateParmDecl *D1,
                                      NonTypeTemplateParmDecl *D2) {
   if (D1->isParameterPack() != D2->isParameterPack()) {

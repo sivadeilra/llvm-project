@@ -97,6 +97,7 @@ namespace clang {
     void VisitVarTemplatePartialSpecializationDecl(
         VarTemplatePartialSpecializationDecl *D);
     void VisitTemplateTypeParmDecl(TemplateTypeParmDecl *D);
+    void VisitLifetimeParmDecl(LifetimeParmDecl *D);
     void VisitValueDecl(ValueDecl *D);
     void VisitEnumConstantDecl(EnumConstantDecl *D);
     void VisitUnresolvedUsingValueDecl(UnresolvedUsingValueDecl *D);
@@ -2104,6 +2105,12 @@ void ASTDeclWriter::VisitTemplateTypeParmDecl(TemplateTypeParmDecl *D) {
     AbbrevToUse = Writer.getDeclTemplateTypeParmAbbrev();
 
   Code = serialization::DECL_TEMPLATE_TYPE_PARM;
+}
+
+void ASTDeclWriter::VisitLifetimeParmDecl(LifetimeParmDecl *D) {
+  VisitNamedDecl(D);
+  // TODO: Write depth, position, keyword loc when lifetime serialization is needed.
+  Code = serialization::DECL_LIFETIME_PARM;
 }
 
 void ASTDeclWriter::VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D) {

@@ -569,6 +569,7 @@ namespace clang {
     ExpectedDecl VisitTemplateTypeParmDecl(TemplateTypeParmDecl *D);
     ExpectedDecl VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D);
     ExpectedDecl VisitTemplateTemplateParmDecl(TemplateTemplateParmDecl *D);
+    ExpectedDecl VisitLifetimeParmDecl(LifetimeParmDecl *D);
     ExpectedDecl VisitClassTemplateDecl(ClassTemplateDecl *D);
     ExpectedDecl VisitClassTemplateSpecializationDecl(
                                             ClassTemplateSpecializationDecl *D);
@@ -6213,6 +6214,27 @@ ASTNodeImporter::VisitTemplateTypeParmDecl(TemplateTypeParmDecl *D) {
 
   if (Error Err = importTemplateParameterDefaultArgument(D, ToD))
     return Err;
+
+  return ToD;
+}
+
+ExpectedDecl
+ASTNodeImporter::VisitLifetimeParmDecl(LifetimeParmDecl *D) {
+  ExpectedSLoc LifetimeKWLocOrErr = import(D->getLifetimeKeywordLoc());
+  if (!LifetimeKWLocOrErr)
+    return LifetimeKWLocOrErr.takeError();
+
+  ExpectedSLoc LocationOrErr = import(D->getLocation());
+  if (!LocationOrErr)
+    return LocationOrErr.takeError();
+
+  LifetimeParmDecl *ToD = nullptr;
+  if (GetImportedOrCreateDecl(
+          ToD, D, Importer.getToContext(),
+          Importer.getToContext().getTranslationUnitDecl(),
+          *LifetimeKWLocOrErr, *LocationOrErr,
+          Importer.Import(D->getIdentifier()), D->getDepth(), D->getIndex()))
+    return ToD;
 
   return ToD;
 }

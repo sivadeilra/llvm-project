@@ -466,6 +466,10 @@ Parser::TPResult Parser::isStartOfTemplateTypeParameter() {
 
 NamedDecl *Parser::ParseTemplateParameter(unsigned Depth, unsigned Position) {
 
+  // Mizar: lifetime @name — a lifetime template parameter.
+  if (Tok.is(tok::kw_lifetime))
+    return ParseLifetimeParameter(Depth, Position);
+
   switch (isStartOfTemplateTypeParameter()) {
   case TPResult::True:
     // Is there just a typo in the input code? ('typedef' instead of
@@ -682,6 +686,32 @@ NamedDecl *Parser::ParseTypeParameter(unsigned Depth, unsigned Position) {
   }
 
   return NewDecl;
+}
+
+/// ParseLifetimeParameter - Parse a Mizar lifetime template parameter.
+///
+///   lifetime-parameter:
+///     'lifetime' '@' identifier
+///
+/// The 'lifetime' keyword and '@identifier' token are consumed.
+NamedDecl *Parser::ParseLifetimeParameter(unsigned Depth, unsigned Position) {
+  assert(Tok.is(tok::kw_lifetime) && "Expected 'lifetime' keyword");
+  SourceLocation LifetimeKWLoc = ConsumeToken();
+
+  // Expect an @identifier.
+  if (Tok.isNot(tok::at_identifier)) {
+    Diag(Tok.getLocation(), diag::err_mizar_expected_lifetime_name);
+    SkipUntil(tok::comma, tok::greater, tok::greatergreater,
+              StopAtSemi | StopBeforeMatch);
+    return nullptr;
+  }
+
+  IdentifierInfo *ParamName = Tok.getIdentifierInfo();
+  SourceLocation ParamNameLoc = ConsumeToken();
+
+  return Actions.ActOnLifetimeParameter(getCurScope(), LifetimeKWLoc,
+                                        ParamName, ParamNameLoc, Depth,
+                                        Position);
 }
 
 NamedDecl *Parser::ParseTemplateTemplateParameter(unsigned Depth,

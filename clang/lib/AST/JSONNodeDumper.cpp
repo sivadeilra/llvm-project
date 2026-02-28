@@ -1040,6 +1040,12 @@ void JSONNodeDumper::VisitTemplateTypeParmDecl(const TemplateTypeParmDecl *D) {
     });
 }
 
+void JSONNodeDumper::VisitLifetimeParmDecl(const LifetimeParmDecl *D) {
+  VisitNamedDecl(D);
+  JOS.attribute("depth", D->getDepth());
+  JOS.attribute("index", D->getIndex());
+}
+
 void JSONNodeDumper::VisitNonTypeTemplateParmDecl(
     const NonTypeTemplateParmDecl *D) {
   VisitNamedDecl(D);

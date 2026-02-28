@@ -2013,6 +2013,10 @@ DEF_TRAVERSE_DECL(TemplateTypeParmDecl, {
     TRY_TO(TraverseTemplateArgumentLoc(D->getDefaultArgument()));
 })
 
+DEF_TRAVERSE_DECL(LifetimeParmDecl, {
+  // Mizar lifetime template parameter -- nothing to traverse yet.
+})
+
 DEF_TRAVERSE_DECL(TypedefDecl, {
   TRY_TO(TraverseTypeLoc(D->getTypeSourceInfo()->getTypeLoc()));
   // We shouldn't traverse D->getTypeForDecl(); it's a result of

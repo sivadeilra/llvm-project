@@ -8114,6 +8114,14 @@ private:
   /// \endverbatim
   NamedDecl *ParseTypeParameter(unsigned Depth, unsigned Position);
 
+  /// ParseLifetimeParameter - Parse a Mizar lifetime template parameter.
+  ///
+  /// \verbatim
+  ///       lifetime-parameter:
+  ///         'lifetime' '@' identifier
+  /// \endverbatim
+  NamedDecl *ParseLifetimeParameter(unsigned Depth, unsigned Position);
+
   /// ParseTemplateTemplateParameter - Handle the parsing of template
   /// template parameters.
   ///

@@ -1348,6 +1348,65 @@ public:
   static bool classofKind(Kind K) { return K == TemplateTypeParm; }
 };
 
+/// LifetimeParmDecl - Declares a lifetime template parameter for the Mizar
+/// borrow-checker extension, e.g., "@a" in:
+/// @code
+/// template<lifetime @a> class StringView { ... };
+/// @endcode
+///
+/// Lifetime parameters are erased before LLVM IR lowering — they exist only
+/// for borrow-checker analysis. Unlike TemplateTypeParmDecl, a lifetime
+/// parameter does not introduce a new type; it names a region of validity
+/// that tracked references can be tied to.
+///
+/// Inherits from NamedDecl (not TypeDecl) because lifetimes are not types.
+/// Stores depth and position within the template parameter list to mirror
+/// the TemplateParmPosition convention used by other template parameters.
+class LifetimeParmDecl final : public NamedDecl {
+  friend class ASTDeclReader;
+
+  /// The location of the 'lifetime' keyword.
+  SourceLocation LifetimeKeywordLoc;
+
+  /// Template parameter list depth.
+  unsigned Depth;
+
+  /// Position within the template parameter list.
+  unsigned Position;
+
+  LifetimeParmDecl(DeclContext *DC, SourceLocation LifetimeKWLoc,
+                    SourceLocation NameLoc, IdentifierInfo *Name, unsigned D,
+                    unsigned P)
+      : NamedDecl(LifetimeParm, DC, NameLoc, DeclarationName(Name)),
+        LifetimeKeywordLoc(LifetimeKWLoc), Depth(D), Position(P) {}
+
+public:
+  static LifetimeParmDecl *Create(const ASTContext &C, DeclContext *DC,
+                                   SourceLocation LifetimeKWLoc,
+                                   SourceLocation NameLoc,
+                                   IdentifierInfo *Name, unsigned D,
+                                   unsigned P);
+  static LifetimeParmDecl *CreateDeserialized(const ASTContext &C,
+                                               GlobalDeclID ID);
+
+  /// Get the location of the 'lifetime' keyword.
+  SourceLocation getLifetimeKeywordLoc() const { return LifetimeKeywordLoc; }
+
+  /// Retrieve the depth of this template parameter.
+  unsigned getDepth() const { return Depth; }
+
+  /// Retrieve the position (index) of this template parameter.
+  unsigned getIndex() const { return Position; }
+
+  SourceRange getSourceRange() const override LLVM_READONLY {
+    return SourceRange(LifetimeKeywordLoc, getLocation());
+  }
+
+  // Implement isa/cast/dyncast/etc.
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
+  static bool classofKind(Kind K) { return K == LifetimeParm; }
+};
+
 /// NonTypeTemplateParmDecl - Declares a non-type template parameter,
 /// e.g., "Size" in
 /// @code

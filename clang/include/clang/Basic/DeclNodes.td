@@ -33,6 +33,7 @@ def Named : DeclNode<Decl, "named declarations", 1>;
             def ClassTemplatePartialSpecialization
               : DeclNode<ClassTemplateSpecialization>;
     def TemplateTypeParm : DeclNode<Type>;
+  def LifetimeParm : DeclNode<Named>;
   def Value : DeclNode<Named, "value declarations", 1>;
     def EnumConstant : DeclNode<Value, "enumerators">;
     def UnresolvedUsingValue : DeclNode<Value>;

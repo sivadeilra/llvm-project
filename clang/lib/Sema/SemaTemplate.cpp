@@ -1068,6 +1068,28 @@ makeTemplateArgumentListInfo(Sema &S, TemplateIdAnnotation &TemplateId) {
   return TemplateArgs;
 }
 
+NamedDecl *Sema::ActOnLifetimeParameter(Scope *S,
+                                        SourceLocation LifetimeKWLoc,
+                                        IdentifierInfo *ParamName,
+                                        SourceLocation ParamNameLoc,
+                                        unsigned Depth, unsigned Position) {
+  assert(S->isTemplateParamScope() &&
+         "Lifetime parameter not in template parameter scope!");
+
+  LifetimeParmDecl *Param = LifetimeParmDecl::Create(
+      Context, Context.getTranslationUnitDecl(), LifetimeKWLoc, ParamNameLoc,
+      ParamName, Depth, Position);
+  Param->setAccess(AS_public);
+
+  if (ParamName) {
+    maybeDiagnoseTemplateParameterShadow(*this, S, ParamNameLoc, ParamName);
+    S->AddDecl(Param);
+    IdResolver.AddDecl(Param);
+  }
+
+  return Param;
+}
+
 bool Sema::CheckTypeConstraint(TemplateIdAnnotation *TypeConstr) {
 
   TemplateName TN = TypeConstr->Template.get();

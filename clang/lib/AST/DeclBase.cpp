@@ -906,6 +906,7 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case Typedef:
     case TypeAlias:
     case TemplateTypeParm:
+    case LifetimeParm:
     case ObjCTypeParam:
       return IDNS_Ordinary | IDNS_Type;
 
@@ -1106,7 +1107,8 @@ bool Decl::AccessDeclContextCheck() const {
   // 7. it's a block literal declaration
   // 8. it's a temporary with lifetime extended due to being default value.
   if (isa<TranslationUnitDecl>(this) || isa<TemplateTypeParmDecl>(this) ||
-      isa<NonTypeTemplateParmDecl>(this) || !getDeclContext() ||
+      isa<NonTypeTemplateParmDecl>(this) || isa<LifetimeParmDecl>(this) ||
+      !getDeclContext() ||
       !isa<CXXRecordDecl>(getDeclContext()) || isInvalidDecl() ||
       isa<StaticAssertDecl>(this) || isa<BlockDecl>(this) ||
       // FIXME: a ParmVarDecl can have ClassTemplateSpecialization

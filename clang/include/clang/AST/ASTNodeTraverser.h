@@ -756,6 +756,10 @@ public:
           D->defaultArgumentWasInherited() ? "inherited from" : "previous");
   }
 
+  void VisitLifetimeParmDecl(const LifetimeParmDecl *D) {
+    // No children to visit for lifetime parameters.
+  }
+
   void VisitConceptDecl(const ConceptDecl *D) {
     dumpTemplateParameters(D->getTemplateParameters());
     Visit(D->getConstraintExpr());

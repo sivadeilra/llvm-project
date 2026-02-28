@@ -4424,7 +4424,9 @@ LexStart:
 
   case '@':
     // Mizar: Tracked reference lifetime names (@a, @static, @_)
-    if (LangOpts.TrackedReferences && CurPtr[-1] == '@' &&
+    // Accepted when Mizar semantics are enabled, either via
+    // -ftracked-references (compile-time) or #pragma mizar on (runtime).
+    if (PP && PP->isMizarEnabled() && CurPtr[-1] == '@' &&
         (isAsciiIdentifierStart(*CurPtr) || *CurPtr == '_')) {
       const char *IdStart = CurPtr;
       while (isAsciiIdentifierContinue(*CurPtr))

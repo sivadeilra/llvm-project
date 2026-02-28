@@ -11532,6 +11532,13 @@ public:
                                 unsigned Position, SourceLocation EqualLoc,
                                 ParsedType DefaultArg, bool HasTypeConstraint);
 
+  /// ActOnLifetimeParameter - Called when a Mizar lifetime template parameter
+  /// (e.g., "lifetime @a") has been parsed.
+  NamedDecl *ActOnLifetimeParameter(Scope *S, SourceLocation LifetimeKWLoc,
+                                    IdentifierInfo *ParamName,
+                                    SourceLocation ParamNameLoc, unsigned Depth,
+                                    unsigned Position);
+
   bool CheckTypeConstraint(TemplateIdAnnotation *TypeConstraint);
 
   bool ActOnTypeConstraint(const CXXScopeSpec &SS,
