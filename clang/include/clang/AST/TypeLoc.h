@@ -1374,13 +1374,39 @@ public:
   }
 };
 
+struct TrackedReferenceLocInfo : public PointerLikeLocInfo {
+  /// Source location of the lifetime annotation (@name), or invalid if elided.
+  SourceLocation LifetimeAnnotLoc;
+  /// The resolved LifetimeParmDecl, or nullptr if no annotation / unresolved.
+  void *LifetimeDecl = nullptr;
+};
+
 /// Wrapper for source info for tracked references (T^ and T^ mut).
 class TrackedReferenceTypeLoc
     : public PointerLikeTypeLoc<TrackedReferenceTypeLoc,
-                                TrackedReferenceType> {
+                                TrackedReferenceType,
+                                TrackedReferenceLocInfo> {
 public:
   SourceLocation getCaretLoc() const { return getSigilLoc(); }
   void setCaretLoc(SourceLocation Loc) { setSigilLoc(Loc); }
+
+  /// Get the source location of the lifetime annotation (@name).
+  SourceLocation getLifetimeAnnotLoc() const {
+    return this->getLocalData()->LifetimeAnnotLoc;
+  }
+  void setLifetimeAnnotLoc(SourceLocation Loc) {
+    this->getLocalData()->LifetimeAnnotLoc = Loc;
+  }
+
+  /// Get the resolved LifetimeParmDecl (opaque pointer to avoid header dep).
+  void *getLifetimeDecl() const { return this->getLocalData()->LifetimeDecl; }
+  void setLifetimeDecl(void *D) { this->getLocalData()->LifetimeDecl = D; }
+
+  void initializeLocal(ASTContext &Context, SourceLocation Loc) {
+    setSigilLoc(Loc);
+    setLifetimeAnnotLoc(SourceLocation());
+    setLifetimeDecl(nullptr);
+  }
 };
 
 struct MemberPointerLocInfo : public PointerLikeLocInfo {

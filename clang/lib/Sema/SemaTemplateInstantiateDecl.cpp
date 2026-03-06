@@ -3448,6 +3448,20 @@ Decl *TemplateDeclInstantiator::VisitParmVarDecl(ParmVarDecl *D) {
                                   /*ExpectParameterPack=*/false);
 }
 
+Decl *TemplateDeclInstantiator::VisitLifetimeParmDecl(LifetimeParmDecl *D) {
+  // Lifetime parameters are erased before codegen and don't carry dependent
+  // information, so instantiation simply creates a new LifetimeParmDecl with
+  // an adjusted depth.
+  LifetimeParmDecl *Inst = LifetimeParmDecl::Create(
+      SemaRef.Context, Owner, D->getLifetimeKeywordLoc(), D->getLocation(),
+      D->getIdentifier(),
+      D->getDepth() - TemplateArgs.getNumSubstitutedLevels(), D->getIndex());
+  Inst->setAccess(AS_public);
+
+  SemaRef.CurrentInstantiationScope->InstantiatedLocal(D, Inst);
+  return Inst;
+}
+
 Decl *TemplateDeclInstantiator::VisitTemplateTypeParmDecl(
                                                     TemplateTypeParmDecl *D) {
   assert(D->getTypeForDecl()->isTemplateTypeParmType());

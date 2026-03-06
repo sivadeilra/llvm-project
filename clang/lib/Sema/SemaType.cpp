@@ -4680,10 +4680,31 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
         T = S.BuildQualifiedType(T, DeclType.Loc, DeclType.Cls.TypeQuals);
       }
       break;
-    case DeclaratorChunk::TrackedReference:
+    case DeclaratorChunk::TrackedReference: {
       // Mizar: Build a tracked reference type (T^ or T^ mut).
+      // If a lifetime annotation (@name) is present, resolve it to the
+      // enclosing LifetimeParmDecl.
+      if (IdentifierInfo *LifetimeName = DeclType.TRef.LifetimeName) {
+        NamedDecl *Found = S.LookupSingleName(
+            S.getCurScope(), LifetimeName, DeclType.TRef.LifetimeLoc,
+            Sema::LookupOrdinaryName);
+        if (!Found) {
+          S.Diag(DeclType.TRef.LifetimeLoc,
+                 diag::err_mizar_undeclared_lifetime)
+              << LifetimeName->getName();
+        } else if (!isa<LifetimeParmDecl>(Found)) {
+          S.Diag(DeclType.TRef.LifetimeLoc, diag::err_mizar_not_a_lifetime)
+              << Found->getDeclName();
+          S.Diag(Found->getLocation(), diag::note_declared_at);
+        } else {
+          // Successfully resolved — store for TypeLoc filling.
+          DeclType.TRef.ResolvedLifetimeDecl =
+              cast<LifetimeParmDecl>(Found);
+        }
+      }
       T = S.Context.getTrackedReferenceType(T, DeclType.TRef.IsExclusive);
       break;
+    }
     case DeclaratorChunk::Pointer:
       // Verify that we're not building a pointer to pointer to function with
       // exception specification.
@@ -6167,6 +6188,8 @@ namespace {
     void VisitTrackedReferenceTypeLoc(TrackedReferenceTypeLoc TL) {
       assert(Chunk.Kind == DeclaratorChunk::TrackedReference);
       TL.setSigilLoc(Chunk.Loc);
+      TL.setLifetimeAnnotLoc(Chunk.TRef.LifetimeLoc);
+      TL.setLifetimeDecl(Chunk.TRef.ResolvedLifetimeDecl);
     }
     void VisitPointerTypeLoc(PointerTypeLoc TL) {
       assert(Chunk.Kind == DeclaratorChunk::Pointer);

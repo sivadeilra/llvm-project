@@ -2473,6 +2473,12 @@ bool Sema::CheckTemplateParameterList(TemplateParameterList *NewParams,
         PreviousDefaultArgLoc = NewNonTypeParm->getDefaultArgumentLoc();
       } else if (SawDefaultArgument)
         MissingDefaultArg = true;
+    } else if (isa<LifetimeParmDecl>(*NewParam)) {
+      // Mizar: Lifetime parameters have no default arguments and don't
+      // participate in default-argument checking or merging.
+      // If a default argument was required, flag it.
+      if (SawDefaultArgument)
+        MissingDefaultArg = true;
     } else {
       TemplateTemplateParmDecl *NewTemplateParm
         = cast<TemplateTemplateParmDecl>(*NewParam);
@@ -2596,6 +2602,8 @@ bool Sema::CheckTemplateParameterList(TemplateParameterList *NewParams,
       else if (NonTypeTemplateParmDecl *NTTP
                                 = dyn_cast<NonTypeTemplateParmDecl>(*NewParam))
         NTTP->removeDefaultArgument();
+      else if (isa<LifetimeParmDecl>(*NewParam))
+        /* Lifetime parameters have no default arguments — nothing to remove. */;
       else
         cast<TemplateTemplateParmDecl>(*NewParam)->removeDefaultArgument();
     }
@@ -2632,6 +2640,8 @@ struct DependencyChecker : DynamicRecursiveASTVisitor {
     } else if (NonTypeTemplateParmDecl *PD =
                  dyn_cast<NonTypeTemplateParmDecl>(ND)) {
       Depth = PD->getDepth();
+    } else if (auto *LPD = dyn_cast<LifetimeParmDecl>(ND)) {
+      Depth = LPD->getDepth();
     } else {
       Depth = cast<TemplateTemplateParmDecl>(ND)->getDepth();
     }

@@ -5619,6 +5619,8 @@ TreeTransform<Derived>::TransformTrackedReferenceType(TypeLocBuilder &TLB,
 
   TrackedReferenceTypeLoc NewT = TLB.push<TrackedReferenceTypeLoc>(Result);
   NewT.setSigilLoc(TL.getSigilLoc());
+  NewT.setLifetimeAnnotLoc(TL.getLifetimeAnnotLoc());
+  NewT.setLifetimeDecl(TL.getLifetimeDecl());
   return Result;
 }
 

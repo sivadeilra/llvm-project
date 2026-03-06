@@ -1659,6 +1659,9 @@ struct DeclaratorChunk {
     IdentifierInfo *LifetimeName;
     /// Source location of the lifetime annotation (@name).
     SourceLocation LifetimeLoc;
+    /// Resolved LifetimeParmDecl, set by Sema during type building.
+    /// Nullptr if no lifetime annotation or resolution failed.
+    void *ResolvedLifetimeDecl;
 
     void destroy() {}
   };
@@ -1823,6 +1826,7 @@ struct DeclaratorChunk {
     I.TRef.IsExclusive  = IsExclusive;
     I.TRef.LifetimeName = LifetimeName;
     I.TRef.LifetimeLoc  = LifetimeLoc;
+    I.TRef.ResolvedLifetimeDecl = nullptr;
     return I;
   }
 

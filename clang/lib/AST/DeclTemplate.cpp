@@ -86,6 +86,9 @@ TemplateParameterList::TemplateParameterList(const ASTContext &C,
       }
       if (TTP->hasTypeConstraint())
         HasConstrainedParameters = true;
+    } else if (isa<LifetimeParmDecl>(P)) {
+      // Lifetime parameters have no default arguments and cannot contain
+      // unexpanded parameter packs.
     } else {
       llvm_unreachable("unexpected template parameter type");
     }
