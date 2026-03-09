@@ -470,6 +470,29 @@ NamedDecl *Parser::ParseTemplateParameter(unsigned Depth, unsigned Position) {
   if (Tok.is(tok::kw_lifetime))
     return ParseLifetimeParameter(Depth, Position);
 
+  // Mizar: If someone tries to use 'lifetime' as an identifier (when Mizar is
+  // disabled), produce a helpful error and return an error parameter.
+  if (Tok.is(tok::identifier) && Tok.getIdentifierInfo()->isStr("lifetime")) {
+    Diag(Tok.getLocation(), diag::err_unknown_typename)
+        << Tok.getIdentifierInfo();
+    
+    // Return an error parameter to avoid bogus diagnostics about empty template
+    // parameter list. Model this after the TPResult::Error case.
+    DeclSpec DS(getAttrFactory());
+    DS.SetTypeSpecError();
+    Declarator D(DS, ParsedAttributesView::none(),
+                 DeclaratorContext::TemplateParam);
+    D.SetIdentifier(nullptr, Tok.getLocation());
+    D.setInvalidType(true);
+    NamedDecl *ErrorParam = Actions.ActOnNonTypeTemplateParameter(
+        getCurScope(), D, Depth, Position, /*EqualLoc=*/SourceLocation(),
+        /*DefaultArg=*/nullptr);
+    ErrorParam->setInvalidDecl(true);
+    SkipUntil(tok::comma, tok::greater, tok::greatergreater,
+              StopAtSemi | StopBeforeMatch);
+    return ErrorParam;
+  }
+
   switch (isStartOfTemplateTypeParameter()) {
   case TPResult::True:
     // Is there just a typo in the input code? ('typedef' instead of

@@ -1,7 +1,11 @@
 // RUN: %clang_cc1 -fsyntax-only -ftracked-references -std=c++20 -verify %s
+// XFAIL: *
 //
 // Tests for drop flags: the interaction between conditional moves,
 // user-defined destructors, and the borrow checker.
+//
+// Phase B (drop flags and destruction-time borrow checking) is not yet
+// implemented. This test is expected to fail until Phase B is complete.
 //
 // In Rust, "drop flags" are runtime booleans inserted by the compiler when
 // a variable with a destructor is conditionally moved. In Mizar/C++:

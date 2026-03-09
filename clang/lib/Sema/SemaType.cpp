@@ -4688,16 +4688,32 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
         NamedDecl *Found = S.LookupSingleName(
             S.getCurScope(), LifetimeName, DeclType.TRef.LifetimeLoc,
             Sema::LookupOrdinaryName);
-        if (!Found) {
-          S.Diag(DeclType.TRef.LifetimeLoc,
-                 diag::err_mizar_undeclared_lifetime)
-              << LifetimeName->getName();
-        } else if (!isa<LifetimeParmDecl>(Found)) {
-          S.Diag(DeclType.TRef.LifetimeLoc, diag::err_mizar_not_a_lifetime)
-              << Found->getDeclName();
-          S.Diag(Found->getLocation(), diag::note_declared_at);
-        } else {
-          // Successfully resolved — store for TypeLoc filling.
+        
+        // Only validate lifetimes in contexts where template parameters are
+        // meaningful (e.g., class members). In function parameters, lifetime
+        // annotations are parsed but not yet semantically enforced.
+        bool IsPrototypeContext = 
+            D.getContext() == DeclaratorContext::Prototype ||
+            D.getContext() == DeclaratorContext::ObjCParameter ||
+            D.getContext() == DeclaratorContext::LambdaExprParameter;
+        
+        if (!IsPrototypeContext) {
+          // Validate that the lifetime exists and is a lifetime parameter
+          if (!Found) {
+            S.Diag(DeclType.TRef.LifetimeLoc,
+                   diag::err_mizar_undeclared_lifetime)
+                << LifetimeName->getName();
+          } else if (!isa<LifetimeParmDecl>(Found)) {
+            S.Diag(DeclType.TRef.LifetimeLoc, diag::err_mizar_not_a_lifetime)
+                << Found->getDeclName();
+            S.Diag(Found->getLocation(), diag::note_declared_at);
+          } else {
+            // Successfully resolved — store for TypeLoc filling.
+            DeclType.TRef.ResolvedLifetimeDecl =
+                cast<LifetimeParmDecl>(Found);
+          }
+        } else if (Found && isa<LifetimeParmDecl>(Found)) {
+          // In prototype context, still store resolved lifetime if found
           DeclType.TRef.ResolvedLifetimeDecl =
               cast<LifetimeParmDecl>(Found);
         }
