@@ -5249,8 +5249,22 @@ static bool NeedsInjectedClassNameType(const RecordDecl *D) {
   if (isa<ClassTemplatePartialSpecializationDecl>(RD))
     return true;
   if (RD->getDescribedClassTemplate() &&
-      !isa<ClassTemplateSpecializationDecl>(RD))
-    return true;
+      !isa<ClassTemplateSpecializationDecl>(RD)) {
+    // Mizar: Classes with only lifetime parameters are not templated
+    // entities from the type system's perspective (lifetime erasure).
+    // Check if all template parameters are lifetime parameters.
+    ClassTemplateDecl *CTD = RD->getDescribedClassTemplate();
+    TemplateParameterList *TPL = CTD->getTemplateParameters();
+    bool hasNonLifetimeParam = false;
+    for (NamedDecl *ND : *TPL) {
+      if (!isa<LifetimeParmDecl>(ND)) {
+        hasNonLifetimeParam = true;
+        break;
+      }
+    }
+    // Only need injected class name type if there's at least one non-lifetime param
+    return hasNonLifetimeParam;
+  }
   return false;
 }
 #endif
@@ -6048,6 +6062,11 @@ TemplateArgument ASTContext::getInjectedTemplateArg(NamedDecl *Param) const {
     if (NTTP->isParameterPack())
       E = new (*this) PackExpansionExpr(E, NTTP->getLocation(), std::nullopt);
     Arg = TemplateArgument(E, /*IsCanonical=*/false);
+  } else if (isa<LifetimeParmDecl>(Param)) {
+    // Lifetime parameters (Mizar extension) are erased before codegen and
+    // have no template argument representation. Return a null TemplateArgument.
+    // Callers should handle or filter out null arguments.
+    Arg = TemplateArgument();
   } else {
     auto *TTP = cast<TemplateTemplateParmDecl>(Param);
     TemplateName Name = getQualifiedTemplateName(

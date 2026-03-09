@@ -253,12 +253,33 @@ bool TemplateParameterList::hasAssociatedConstraints() const {
 ArrayRef<TemplateArgument>
 TemplateParameterList::getInjectedTemplateArgs(const ASTContext &Context) {
   if (!InjectedArgs) {
-    InjectedArgs = new (Context) TemplateArgument[size()];
-    llvm::transform(*this, InjectedArgs, [&](NamedDecl *ND) {
-      return Context.getInjectedTemplateArg(ND);
-    });
+    // Count non-lifetime parameters (lifetime parameters are erased)
+    unsigned NonLifetimeCount = 0;
+    for (NamedDecl *ND : *this) {
+      if (!isa<LifetimeParmDecl>(ND))
+        ++NonLifetimeCount;
+    }
+    
+    InjectedArgs = new (Context) TemplateArgument[NonLifetimeCount];
+    unsigned Idx = 0;
+    for (NamedDecl *ND : *this) {
+      // Skip lifetime parameters - they are erased and don't participate
+      // in template specialization (Mizar extension)
+      if (isa<LifetimeParmDecl>(ND))
+        continue;
+      InjectedArgs[Idx++] = Context.getInjectedTemplateArg(ND);
+    }
+    return {InjectedArgs, NonLifetimeCount};
   }
-  return {InjectedArgs, NumParams};
+  
+  // On subsequent calls, recompute the count (can't store it easily without
+  // changing class layout)
+  unsigned NonLifetimeCount = 0;
+  for (NamedDecl *ND : *this) {
+    if (!isa<LifetimeParmDecl>(ND))
+      ++NonLifetimeCount;
+  }
+  return {InjectedArgs, NonLifetimeCount};
 }
 
 bool TemplateParameterList::shouldIncludeTypeForArgument(
@@ -670,9 +691,9 @@ ClassTemplateDecl::getInjectedClassNameSpecialization() {
   //  expansion (14.5.3) whose pattern is the name of the template parameter
   //  pack.
   ASTContext &Context = getASTContext();
+  auto TemplateArgs = getTemplateParameters()->getInjectedTemplateArgs(Context);
   TemplateName Name = Context.getQualifiedTemplateName(
       /*NNS=*/nullptr, /*TemplateKeyword=*/false, TemplateName(this));
-  auto TemplateArgs = getTemplateParameters()->getInjectedTemplateArgs(Context);
   CommonPtr->InjectedClassNameType =
       Context.getTemplateSpecializationType(Name,
                                             /*SpecifiedArgs=*/TemplateArgs,

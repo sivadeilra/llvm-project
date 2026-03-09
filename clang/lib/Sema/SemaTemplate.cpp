@@ -2162,10 +2162,26 @@ DeclResult Sema::CheckClassTemplate(
     NewTemplate->setModulePrivate();
 
   // Build the type for the class template declaration now.
-  QualType T = NewTemplate->getInjectedClassNameSpecialization();
-  T = Context.getInjectedClassNameType(NewClass, T);
-  assert(T->isDependentType() && "Class template type is not dependent?");
-  (void)T;
+  // Mizar: Classes with only lifetime parameters don't need injected class name types
+  // because lifetimes are erased for type identity (they're concrete non-template types).
+  bool hasOnlyLifetimeParams = true;
+  for (NamedDecl *ND : *TemplateParams) {
+    if (!isa<LifetimeParmDecl>(ND)) {
+      hasOnlyLifetimeParams = false;
+      break;
+    }
+  }
+  
+  if (!hasOnlyLifetimeParams) {
+    QualType T = NewTemplate->getInjectedClassNameSpecialization();
+    T = Context.getInjectedClassNameType(NewClass, T);
+    assert(T->isDependentType() && "Class template type is not dependent?");
+    (void)T;
+  } else {
+    // For all-lifetime templates, just create a regular RecordType
+    QualType T = Context.getRecordType(NewClass);
+    (void)T;
+  }
 
   // If we are providing an explicit specialization of a member that is a
   // class template, make a note of that.
