@@ -9621,6 +9621,12 @@ public:
 static bool EvaluatePointer(const Expr* E, LValue& Result, EvalInfo &Info,
                             bool InvalidBaseOK) {
   assert(!E->isValueDependent());
+  
+  // Mizar: Tracked references are not pointers and cannot be evaluated as
+  // compile-time constants. They exist only for borrow checking.
+  if (E->getType()->isTrackedReferenceType())
+    return false;
+  
   assert(E->isPRValue() && E->getType()->hasPointerRepresentation());
   return PointerExprEvaluator(Info, Result, InvalidBaseOK).Visit(E);
 }
