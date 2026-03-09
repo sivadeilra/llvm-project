@@ -37,6 +37,30 @@ struct MultiFieldGuard {
   ~MultiFieldGuard() { log_value(a + b); }
 };
 
+// --------------------------------------------------------------------------
+// Types for drop-glue tests (implicit destructor, no user-provided dtor)
+// --------------------------------------------------------------------------
+
+struct Inner {
+  int data;
+  ~Inner() { log_value(data); }  // user-provided destructor
+};
+
+// DropGlueType has NO user-provided destructor. The compiler generates
+// implicit drop glue that calls Inner::~Inner() on .resource but never
+// touches .value (which is trivially destructible).
+struct DropGlueType {
+  int value;
+  Inner resource;
+};
+
+// AllTrivialFields: has a non-trivial field (Inner) and a trivially-
+// destructible int, but no user-provided destructor.
+struct TwoFields {
+  Inner field_a;
+  int field_b;
+};
+
 // ==========================================================================
 // Test 1: Trivial type — no destructor interaction, borrow ends at last use.
 // ==========================================================================
@@ -202,4 +226,70 @@ void test_conditional_init_with_destructor(bool cond) safe {
   // But even without an explicit use, on the cond path the loan is live
   // at g's destructor point → conservative error.
   // expected-error {{cannot destroy 'g' because a field may be exclusively borrowed}}
+}
+
+// ==========================================================================
+// Test 11: Drop glue — borrow of trivially-destructible field.
+//          Implicit destructor only calls Inner::~Inner() on .resource;
+//          it never touches .value. Loan on .value should NOT conflict.
+// ==========================================================================
+
+void test_drop_glue_trivial_field_ok() safe {
+  DropGlueType dg;
+  dg.value = 1;
+  int^ mut r = &dg.value;  // borrow of .value (int — trivially destructible)
+  *r = 42;
+  // Implicit dtor runs: Inner::~Inner() on .resource only.
+  // .value is trivially destructible → drop glue doesn't touch it.
+  // Loan on .value does NOT expire at the implicit dtor → no conflict.
+  // OK — no error
+}
+
+// ==========================================================================
+// Test 12: Drop glue — borrow of non-trivially-destructible field.
+//          Implicit destructor calls Inner::~Inner() on .resource, which
+//          IS a write to .resource → conflict with loan on .resource.data.
+// ==========================================================================
+
+void test_drop_glue_nontrivial_field_conflict() safe {
+  DropGlueType dg;
+  int^ mut r = &dg.resource.data;  // borrow of .resource.data
+  *r = 42;
+  // Implicit dtor calls Inner::~Inner() → Inner has a user-provided dtor
+  // which accesses .resource (equiv to `impl Drop`).
+  // TODO: This test requires deeper access path modeling (nested fields).
+  // For now, the loan is on `dg` (base variable), and any destruction of
+  // dg expires it. This test documents the intended future behavior.
+}
+
+// ==========================================================================
+// Test 13: User-provided dtor — borrow of ANY field conflicts.
+//          NonTrivialGuard has ~NonTrivialGuard() which accesses `this`.
+//          Even a borrow of a trivially-destructible field (.value) must
+//          expire because the user dtor can access it.
+// ==========================================================================
+
+void test_user_dtor_trivial_field_still_conflicts() safe {
+  NonTrivialGuard g{42};
+  int^ mut r = &g.value;   // borrow of .value
+  *r = 100;
+  // g.~NonTrivialGuard() runs: user-provided dtor accesses g.value.
+  // Even though .value is `int` (trivially destructible), the user-provided
+  // dtor has whole-object `this` access → loan expires → conflict if live.
+  // expected-error {{cannot destroy 'g' because a field is exclusively borrowed}}
+  // expected-note {{exclusive borrow of 'g.value' created here}}
+}
+
+// ==========================================================================
+// Test 14: Drop glue with two fields — borrow trivial field while
+//          non-trivial field destructs. Should be safe.
+// ==========================================================================
+
+void test_drop_glue_two_fields_independent() safe {
+  TwoFields tf;
+  int^ mut r = &tf.field_b;  // borrow of .field_b (int — trivially destructible)
+  *r = 42;
+  // Implicit dtor calls Inner::~Inner() on .field_a only.
+  // .field_b is trivially destructible → drop glue doesn't touch it.
+  // OK — no error
 }

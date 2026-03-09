@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 #include "clang/Analysis/Analyses/LifetimeSafety.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/Type.h"
@@ -27,12 +28,26 @@ namespace clang {
 namespace {
 
 /// Represents the storage location being borrowed, e.g., a specific stack
-/// variable.
-/// TODO: Model access paths of other types, e.g., s.field, heap and globals.
+/// variable, optionally narrowed to a specific field.
 struct AccessPath {
   const clang::ValueDecl *D;
+  const clang::FieldDecl *Field; // nullptr = whole object
 
-  AccessPath(const clang::ValueDecl *D) : D(D) {}
+  AccessPath(const clang::ValueDecl *D) : D(D), Field(nullptr) {}
+  AccessPath(const clang::ValueDecl *D, const clang::FieldDecl *F)
+      : D(D), Field(F) {}
+
+  /// Two paths conflict if they refer to the same base variable and their
+  /// field components overlap. A whole-object path (Field==nullptr) overlaps
+  /// with every field of that object. Two field paths overlap only if they
+  /// name the same field.
+  bool conflictsWith(const AccessPath &Other) const {
+    if (D != Other.D)
+      return false;
+    if (!Field || !Other.Field)
+      return true; // at least one is whole-object
+    return Field == Other.Field;
+  }
 };
 
 /// A generic, type-safe wrapper for an ID, distinguished by its `Tag` type.
@@ -413,19 +428,28 @@ public:
 
   void VisitUnaryOperator(const UnaryOperator *UO) {
     if (UO->getOpcode() == UO_AddrOf) {
-      const Expr *SubExpr = UO->getSubExpr();
-      if (const auto *DRE = dyn_cast<DeclRefExpr>(SubExpr)) {
-        if (const auto *VD = dyn_cast<VarDecl>(DRE->getDecl())) {
-          // Check if it's a local variable.
-          if (VD->hasLocalStorage()) {
-            OriginID OID = FactMgr.getOriginMgr().getOrCreate(*UO);
-            AccessPath AddrOfLocalVarPath(VD);
-            const Loan &L = FactMgr.getLoanMgr().addLoan(AddrOfLocalVarPath,
-                                                         UO->getOperatorLoc());
-            CurrentBlockFacts.push_back(
-                FactMgr.createFact<IssueFact>(L.ID, OID));
-          }
-        }
+      const Expr *SubExpr = UO->getSubExpr()->IgnoreParenImpCasts();
+      const VarDecl *BaseVD = nullptr;
+      const FieldDecl *FD = nullptr;
+
+      if (const auto *ME = dyn_cast<MemberExpr>(SubExpr)) {
+        // &obj.field — extract the base variable and the field.
+        if (const auto *BaseDRE = dyn_cast<DeclRefExpr>(
+                ME->getBase()->IgnoreParenImpCasts()))
+          BaseVD = dyn_cast<VarDecl>(BaseDRE->getDecl());
+        FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
+      } else if (const auto *DRE = dyn_cast<DeclRefExpr>(SubExpr)) {
+        // &x — whole variable.
+        BaseVD = dyn_cast<VarDecl>(DRE->getDecl());
+      }
+
+      if (BaseVD && BaseVD->hasLocalStorage()) {
+        OriginID OID = FactMgr.getOriginMgr().getOrCreate(*UO);
+        AccessPath Path(BaseVD, FD);
+        const Loan &L =
+            FactMgr.getLoanMgr().addLoan(Path, UO->getOperatorLoc());
+        CurrentBlockFacts.push_back(
+            FactMgr.createFact<IssueFact>(L.ID, OID));
       }
     }
   }
@@ -470,23 +494,57 @@ private:
   }
 
   void handleDestructor(const CFGAutomaticObjDtor &DtorOpt) {
-    /// TODO: Also handle trivial destructors (e.g., for `int`
-    /// variables) which will never have a CFGAutomaticObjDtor node.
     /// TODO: Handle loans to temporaries.
     /// TODO: Consider using clang::CFG::BuildOptions::AddLifetime to reuse the
     /// lifetime ends.
     const VarDecl *DestructedVD = DtorOpt.getVarDecl();
     if (!DestructedVD)
       return;
-    // Iterate through all loans to see if any expire.
-    /// TODO(opt): Do better than a linear search to find loans associated with
-    /// 'DestructedVD'.
+
+    QualType T = DestructedVD->getType().getCanonicalType();
+    const CXXRecordDecl *RD = T->getAsCXXRecordDecl();
+
+    // Determine whether the type has a user-provided destructor (analogous
+    // to Rust's `impl Drop`) vs. an implicitly-defined destructor that
+    // merely calls field destructors ("drop glue"). A user-provided
+    // destructor has `this` access to the entire object, so all loans
+    // rooted at this variable must expire. An implicit destructor only
+    // touches individual fields, so only loans to non-trivially-
+    // destructible fields must expire.
+    // Note: `= default` destructors are user-declared but NOT user-provided,
+    // and behave like implicit destructors (drop glue).
+    bool HasUserDtor = false;
+    if (RD) {
+      if (const CXXDestructorDecl *Dtor = RD->getDestructor())
+        HasUserDtor = Dtor->isUserProvided();
+    }
+
+    /// TODO(opt): Do better than a linear search to find loans associated
+    /// with 'DestructedVD'.
     for (const Loan &L : FactMgr.getLoanMgr().getLoans()) {
-      const AccessPath &LoanPath = L.Path;
-      // Check if the loan is for a stack variable and if that variable
-      // is the one being destructed.
-      if (LoanPath.D == DestructedVD)
+      if (L.Path.D != DestructedVD)
+        continue;
+
+      if (HasUserDtor) {
+        // User-provided destructor: whole-object access.
+        // All loans rooted at this variable expire.
         CurrentBlockFacts.push_back(FactMgr.createFact<ExpireFact>(L.ID));
+      } else {
+        // Implicit destructor (drop glue): per-field destruction.
+        if (!L.Path.Field) {
+          // Whole-object loan — always expires when the object is destroyed.
+          CurrentBlockFacts.push_back(FactMgr.createFact<ExpireFact>(L.ID));
+        } else {
+          // Field loan — only expire if that field's type needs destruction,
+          // because drop glue only calls destructors on individual fields.
+          QualType FT = L.Path.Field->getType();
+          if (FT.isDestructedType() != QualType::DK_none)
+            CurrentBlockFacts.push_back(
+                FactMgr.createFact<ExpireFact>(L.ID));
+          // Else: field is trivially destructible; drop glue won't touch
+          // it. The loan expires later at CFGLifetimeEnds(DestructedVD).
+        }
+      }
     }
   }
 
