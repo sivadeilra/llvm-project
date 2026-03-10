@@ -21420,22 +21420,51 @@ bool Sema::CheckTrackedReferenceLifetimeCompatibility(QualType FromType,
                                                       QualType ToType,
                                                       SourceLocation Loc,
                                                       bool AllowRecovery) {
-  // Only check lifetime compatibility if both types are tracked references
+  // Only check lifetime compatibility if both types are tracked references.
   const auto *FromTracked = FromType->getAs<TrackedReferenceType>();
   const auto *ToTracked = ToType->getAs<TrackedReferenceType>();
 
-  if (!FromTracked || !ToTracked) {
-    // Not both tracked references; compatibility check not applicable
+  if (!FromTracked || !ToTracked)
     return true;
+
+  LifetimeParmDecl *FromLifetime = FromTracked->getLifetimeParam();
+  LifetimeParmDecl *ToLifetime = ToTracked->getLifetimeParam();
+
+  // If either side has no lifetime annotation, nothing to verify.
+  if (!FromLifetime || !ToLifetime)
+    return true;
+
+  // Same lifetime is always valid (reflexivity).
+  if (FromLifetime == ToLifetime)
+    return true;
+
+  // Find the enclosing function template's parameter list so we can build
+  // the outlives relation from the 'requires' constraints.
+  // Mizar spec §3.2: lifetime coercion is valid iff the source lifetime
+  // outlives the target lifetime under the declared constraints.
+  FunctionDecl *FD = getCurFunctionDecl(/*AllowLambda=*/true);
+  if (!FD)
+    return true; // No function context; skip (defensive)
+
+  FunctionTemplateDecl *FTD = FD->getDescribedFunctionTemplate();
+  if (!FTD)
+    return true; // Not a template; no constraints to evaluate
+
+  OutlivesRelation OR(FTD->getTemplateParameters());
+
+  // Coercion T^@From → T^@To is safe iff @From outlives @To.
+  // Widening (assigning a shorter-lived reference where a longer-lived one
+  // is expected) is a violation.
+  if (!OR.outlives(FromLifetime, ToLifetime)) {
+    Diag(Loc, diag::err_lifetime_does_not_outlive)
+        << FromLifetime->getName() << ToLifetime->getName();
+    Diag(ToLifetime->getLocation(),
+         diag::note_add_lifetime_constraint_suggestion)
+        << FromLifetime->getName() << ToLifetime->getName();
+    return false;
   }
 
-  // DEBUG: For now, just pass all checks - we'll implement this properly
-  // once we figure out how to access LifetimeParmDecl from QualType
-  // The issue: QualType doesn't carry the LifetimeParmDecl*, only TypeLoc does
-  Diag(Loc, diag::warn_mizar_unsafe_call_in_safe_context)
-      << 0 << "MIZAR: TrackedRef validation pending (LifetimeParmDecl storage needed)";
-  
-  return true;  // Pass for now
+  return true;
 }
 
 ExprResult Sema::CreateRecoveryExpr(SourceLocation Begin, SourceLocation End,

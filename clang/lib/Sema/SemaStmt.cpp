@@ -4125,6 +4125,34 @@ StmtResult Sema::BuildReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp,
     // overlap restriction of subclause 6.5.16.1 does not apply to the case of
     // function return.
 
+    // Mizar: T^@from and T^@to are distinct QualTypes when lifetimes differ.
+    // Before standard copy-initialization attempts to match types, intercept
+    // tracked reference lifetime coercions (Mizar spec §3.2: a T^@a value may
+    // be coerced to T^@b iff @a outlives @b under the declared constraints).
+    if (!HasDependentReturnType && !RetValExp->isTypeDependent()) {
+      const auto *FromTR =
+          RetValExp->getType()->getAs<TrackedReferenceType>();
+      const auto *ToTR = RetType->getAs<TrackedReferenceType>();
+      if (FromTR && ToTR &&
+          !Context.hasSameType(RetValExp->getType(), RetType) &&
+          Context.hasSameType(FromTR->getPointeeType(),
+                              ToTR->getPointeeType()) &&
+          FromTR->isExclusive() == ToTR->isExclusive()) {
+        // Validate the lifetime outlives constraint.
+        bool ValidCoercion = CheckTrackedReferenceLifetimeCompatibility(
+            RetValExp->getType(), RetType, ReturnLoc, AllowRecovery);
+        if (!ValidCoercion && !AllowRecovery)
+          return StmtError();
+        // Always rewrite to target type so copy-initialization below sees
+        // matching types and does not emit a cascading diagnostic.
+        // Both types have identical runtime representation; only the static
+        // lifetime annotation changes (Mizar: lifetime erasure at codegen).
+        ExprResult LvToRv = DefaultLvalueConversion(RetValExp);
+        if (!LvToRv.isInvalid()) RetValExp = LvToRv.get();
+        RetValExp = ImpCastExprToType(RetValExp, RetType, CK_NoOp).get();
+      }
+    }
+
     // In C++ the return statement is handled via a copy initialization,
     // the C version of which boils down to CheckSingleAssignmentConstraints.
     if (!HasDependentReturnType && !RetValExp->isTypeDependent()) {

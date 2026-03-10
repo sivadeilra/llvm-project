@@ -1,4 +1,4 @@
-//===--- SemaDecl.cpp - Semantic Analysis for Declarations ----------------===//
+﻿//===--- SemaDecl.cpp - Semantic Analysis for Declarations ----------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -13808,6 +13808,12 @@ void Sema::AddInitializerToDecl(Decl *RealDecl, Expr *Init, bool DirectInit) {
       InitializedFromParenListExpr = true;
     }
 
+    // Mizar spec SS3.2: Capture the initializer type before the initialization
+    // sequence can convert it, so we can check outlives on tracked references.
+    QualType MizarOrigInitType;
+    if (getLangOpts().TrackedReferences && Args.size() == 1)
+      MizarOrigInitType = Args[0]->getType();
+
     InitializationSequence InitSeq(*this, Entity, Kind, Args,
                                    /*TopLevelOfInitList=*/false,
                                    /*TreatUnavailableAsInvalid=*/false);
@@ -13832,6 +13838,14 @@ void Sema::AddInitializerToDecl(Decl *RealDecl, Expr *Init, bool DirectInit) {
     }
 
     Init = Result.getAs<Expr>();
+    // Mizar spec SS3.2: Diagnose lifetime outlives violations for variable init.
+    if (getLangOpts().TrackedReferences && !MizarOrigInitType.isNull() &&
+        !VDecl->getType().isNull() && !MizarOrigInitType->isDependentType() &&
+        !VDecl->getType()->isDependentType()) {
+      CheckTrackedReferenceLifetimeCompatibility(
+          MizarOrigInitType, VDecl->getType(), VDecl->getLocation(),
+          /*AllowRecovery=*/false);
+    }
     IsParenListInit = !InitSeq.steps().empty() &&
                       InitSeq.step_begin()->Kind ==
                           InitializationSequence::SK_ParenthesizedListInit;

@@ -1,4 +1,4 @@
-//===--- SemaOverload.cpp - C++ Overloading -------------------------------===//
+﻿//===--- SemaOverload.cpp - C++ Overloading -------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -2510,6 +2510,21 @@ static bool IsStandardConversion(Sema &S, Expr* From, QualType ToType,
               ToType->isConvertibleToFixedPointType())) {
     SCS.Second = ICK_Fixed_Point_Conversion;
     FromType = ToType;
+  } else if (S.getLangOpts().TrackedReferences) {
+    // Mizar spec SS3.2: T^@from -> T^@to is a standard conversion when both
+    // tracked reference types have identical pointee type and exclusivity.
+    // The outlives check is deferred to semantic analysis.
+    const auto *FromTR = FromType->getAs<TrackedReferenceType>();
+    const auto *ToTR = ToType->getAs<TrackedReferenceType>();
+    if (FromTR && ToTR &&
+        S.Context.hasSameType(FromTR->getPointeeType(),
+                              ToTR->getPointeeType()) &&
+        FromTR->isExclusive() == ToTR->isExclusive()) {
+      SCS.Second = ICK_Identity;
+      FromType = ToType;
+    } else {
+      SCS.Second = ICK_Identity;
+    }
   } else {
     // No second conversion required.
     SCS.Second = ICK_Identity;

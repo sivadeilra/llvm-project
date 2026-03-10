@@ -4718,7 +4718,9 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
               cast<LifetimeParmDecl>(Found);
         }
       }
-      T = S.Context.getTrackedReferenceType(T, DeclType.TRef.IsExclusive);
+      T = S.Context.getTrackedReferenceType(
+          T, DeclType.TRef.IsExclusive,
+          static_cast<LifetimeParmDecl *>(DeclType.TRef.ResolvedLifetimeDecl));
       break;
     }
     case DeclaratorChunk::Pointer:

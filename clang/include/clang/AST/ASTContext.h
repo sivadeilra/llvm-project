@@ -75,6 +75,7 @@ enum class FloatModeKind;
 class GlobalDecl;
 class IdentifierTable;
 class LangOptions;
+class LifetimeParmDecl;
 class MangleContext;
 class MangleNumberingContext;
 class MemberSpecializationInfo;
@@ -1551,7 +1552,9 @@ public:
 
   /// Return the uniqued reference to a tracked reference type.
   /// If Exclusive is true, this is T^ mut; otherwise T^.
-  QualType getTrackedReferenceType(QualType T, bool Exclusive) const;
+  /// LifetimeParm is the lifetime annotation, or nullptr if absent.
+  QualType getTrackedReferenceType(QualType T, bool Exclusive,
+                                    LifetimeParmDecl *LifetimeParm = nullptr) const;
 
   /// Gets the struct used to keep track of the descriptor for pointer to
   /// blocks.

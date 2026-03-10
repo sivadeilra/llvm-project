@@ -121,6 +121,7 @@ class EnumDecl;
 class Expr;
 class ExtQualsTypeCommonBase;
 class FunctionDecl;
+class LifetimeParmDecl;
 class FunctionEffectsRef;
 class FunctionEffectKindSet;
 class FunctionEffectSet;
@@ -3506,27 +3507,36 @@ class TrackedReferenceType : public Type, public llvm::FoldingSetNode {
 
   QualType PointeeType;
   bool Exclusive; // true = T^ mut (exclusive), false = T^ (shared)
+  // The lifetime parameter annotation (@name), if present. nullptr means no
+  // annotation was written. Two TrackedReferenceTypes with different
+  // LifetimeParm values are distinct types in the Mizar type system.
+  LifetimeParmDecl *LifetimeParm;
 
-  TrackedReferenceType(QualType Pointee, bool Exclusive, QualType CanonicalRef)
+  TrackedReferenceType(QualType Pointee, bool Exclusive,
+                       LifetimeParmDecl *LifetimeParm, QualType CanonicalRef)
       : Type(TrackedReference, CanonicalRef, Pointee->getDependence()),
-        PointeeType(Pointee), Exclusive(Exclusive) {}
+        PointeeType(Pointee), Exclusive(Exclusive),
+        LifetimeParm(LifetimeParm) {}
 
 public:
   QualType getPointeeType() const { return PointeeType; }
   bool isExclusive() const { return Exclusive; }
   bool isShared() const { return !Exclusive; }
+  /// Returns the lifetime parameter annotation, or nullptr if none.
+  LifetimeParmDecl *getLifetimeParam() const { return LifetimeParm; }
 
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
 
   void Profile(llvm::FoldingSetNodeID &ID) {
-    Profile(ID, getPointeeType(), isExclusive());
+    Profile(ID, getPointeeType(), isExclusive(), LifetimeParm);
   }
 
   static void Profile(llvm::FoldingSetNodeID &ID, QualType Pointee,
-                      bool Exclusive) {
+                      bool Exclusive, LifetimeParmDecl *LifetimeParm) {
     ID.AddPointer(Pointee.getAsOpaquePtr());
     ID.AddBoolean(Exclusive);
+    ID.AddPointer(LifetimeParm);
   }
 
   static bool classof(const Type *T) {

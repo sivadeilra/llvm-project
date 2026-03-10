@@ -4079,9 +4079,10 @@ QualType ASTContext::getBlockPointerType(QualType T) const {
 
 /// getTrackedReferenceType - Return the uniqued reference to the type for a
 /// tracked reference (T^ or T^ mut) to the specified type.
-QualType ASTContext::getTrackedReferenceType(QualType T, bool Exclusive) const {
+QualType ASTContext::getTrackedReferenceType(QualType T, bool Exclusive,
+                                              LifetimeParmDecl *LifetimeParm) const {
   llvm::FoldingSetNodeID ID;
-  TrackedReferenceType::Profile(ID, T, Exclusive);
+  TrackedReferenceType::Profile(ID, T, Exclusive, LifetimeParm);
 
   void *InsertPos = nullptr;
   if (TrackedReferenceType *RT =
@@ -4090,14 +4091,15 @@ QualType ASTContext::getTrackedReferenceType(QualType T, bool Exclusive) const {
 
   QualType Canonical;
   if (!T.isCanonical()) {
-    Canonical = getTrackedReferenceType(getCanonicalType(T), Exclusive);
+    Canonical = getTrackedReferenceType(getCanonicalType(T), Exclusive,
+                                        LifetimeParm);
 
     TrackedReferenceType *NewIP =
         TrackedReferenceTypes.FindNodeOrInsertPos(ID, InsertPos);
     assert(!NewIP && "Shouldn't be in the map!"); (void)NewIP;
   }
   auto *New = new (*this, alignof(TrackedReferenceType))
-      TrackedReferenceType(T, Exclusive, Canonical);
+      TrackedReferenceType(T, Exclusive, LifetimeParm, Canonical);
   Types.push_back(New);
   TrackedReferenceTypes.InsertNode(New, InsertPos);
   return QualType(New, 0);
