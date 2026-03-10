@@ -6074,12 +6074,24 @@ bool Sema::GatherArgumentsForCall(SourceLocation CallLoc, FunctionDecl *FDecl,
       if (CFAudited)
         Entity.setParameterCFAudited();
 
+      QualType MizarArgType;
+      if (getLangOpts().TrackedReferences)
+        MizarArgType = Arg->getType();
+
       ExprResult ArgE = PerformCopyInitialization(
           Entity, SourceLocation(), Arg, IsListInitialization, AllowExplicit);
       if (ArgE.isInvalid())
         return true;
 
       Arg = ArgE.getAs<Expr>();
+
+      if (getLangOpts().TrackedReferences && !MizarArgType.isNull() &&
+          !ProtoArgType.isNull() && !MizarArgType->isDependentType() &&
+          !ProtoArgType->isDependentType() &&
+          !CheckTrackedReferenceLifetimeCompatibility(
+              MizarArgType, ProtoArgType, Arg->getExprLoc(),
+              /*AllowRecovery=*/false))
+        return true;
     } else {
       assert(Param && "can't use default arguments without a known callee");
 
@@ -9769,6 +9781,13 @@ AssignConvertType Sema::CheckSingleAssignmentConstraints(QualType LHSType,
       }
       if (RHS.isInvalid())
         return AssignConvertType::Incompatible;
+        if (Diagnose && getLangOpts().TrackedReferences && !RHSType.isNull() &&
+          !LHSType.isNull() && !RHSType->isDependentType() &&
+          !LHSType->isDependentType() &&
+          !CheckTrackedReferenceLifetimeCompatibility(
+            RHSType, LHSType.getUnqualifiedType(), RHS.get()->getExprLoc(),
+            /*AllowRecovery=*/false))
+        return AssignConvertType::Compatible;
       AssignConvertType result = AssignConvertType::Compatible;
       if (getLangOpts().allowsNonTrivialObjCLifetimeQualifiers() &&
           !ObjC().CheckObjCARCUnavailableWeakConversion(LHSType, RHSType))
