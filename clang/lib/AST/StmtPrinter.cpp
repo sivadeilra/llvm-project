@@ -706,6 +706,11 @@ void StmtPrinter::VisitMizarUnsafeExpr(MizarUnsafeExpr *Node) {
   OS << ")";
 }
 
+void StmtPrinter::VisitLifetimeConstraintExpr(LifetimeConstraintExpr *Node) {
+  OS << "@" << Node->getOutliverParam()->getIdentifier()->getName();
+  OS << " : @" << Node->getOutlivedParam()->getIdentifier()->getName();
+}
+
 void StmtPrinter::PrintRawSEHFinallyStmt(SEHFinallyStmt *Node) {
   OS << "__finally ";
   PrintRawCompoundStmt(Node->getBlock());

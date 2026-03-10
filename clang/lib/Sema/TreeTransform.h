@@ -9530,6 +9530,13 @@ TreeTransform<Derived>::TransformMizarUnsafeExpr(MizarUnsafeExpr *E) {
                                              E->getRParenLoc());
 }
 
+template <typename Derived>
+ExprResult
+TreeTransform<Derived>::TransformLifetimeConstraintExpr(
+    LifetimeConstraintExpr *E) {
+  return E;
+}
+
 //===----------------------------------------------------------------------===//
 // OpenMP directive transformation
 //===----------------------------------------------------------------------===//

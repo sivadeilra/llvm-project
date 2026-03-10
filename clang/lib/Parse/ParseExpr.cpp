@@ -193,12 +193,65 @@ ExprResult Parser::ParseConstraintExpression() {
   return Res;
 }
 
+/// Parse a lifetime constraint expression in the form @identifier : @identifier
+/// This represents the constraint that the first lifetime outlives the second.
+/// Only parsed when Mizar/tracked references are enabled.
+ExprResult Parser::ParseLifetimeConstraint() {
+  // This is not a lifetime constraint if tracking is disabled
+  if (!getLangOpts().TrackedReferences && !PP.isMizarEnabled())
+    return ExprError();
+
+  // Backtrack point in case this isn't a lifetime constraint
+  TentativeParsingAction Backtrack(*this);
+
+  // Check for @identifier pattern
+  if (Tok.isNot(tok::at_identifier))
+    return ExprError();
+
+  IdentifierInfo *FirstIdent = Tok.getIdentifierInfo();
+  SourceLocation FirstAtLoc = Tok.getLocation();
+  SourceLocation FirstIdentLoc = ConsumeToken();
+
+  // Check for : operator
+  if (Tok.isNot(tok::colon))
+    return ExprError();
+
+  SourceLocation ColonLoc = ConsumeToken();
+
+  // Check for second @identifier
+  if (Tok.isNot(tok::at_identifier))
+    return ExprError();
+
+  IdentifierInfo *SecondIdent = Tok.getIdentifierInfo();
+  SourceLocation SecondAtLoc = Tok.getLocation();
+  SourceLocation SecondIdentLoc = ConsumeToken();
+
+  // We've successfully parsed @ident1 : @ident2
+  // Now commit to this interpretation
+  Backtrack.Commit();
+
+  // Delegate to Sema to create the LifetimeConstraintExpr and validate
+  // that both operands reference declared lifetime parameters
+  return Actions.ActOnLifetimeConstraintExpr(
+      getCurScope(), FirstAtLoc, FirstIdent, FirstIdentLoc,
+      ColonLoc, SecondAtLoc, SecondIdent, SecondIdentLoc);
+}
+
 ExprResult
 Parser::ParseConstraintLogicalAndExpression(bool IsTrailingRequiresClause) {
   EnterExpressionEvaluationContext ConstantEvaluated(
       Actions, Sema::ExpressionEvaluationContext::Unevaluated);
   bool NotPrimaryExpression = false;
   auto ParsePrimary = [&]() {
+    // Try to parse a lifetime constraint expression first if Mizar is enabled
+    if (getLangOpts().TrackedReferences || PP.isMizarEnabled()) {
+      if (Tok.is(tok::at_identifier)) {
+        ExprResult LifetimeConstraint = ParseLifetimeConstraint();
+        if (LifetimeConstraint.isUsable())
+          return LifetimeConstraint;
+      }
+    }
+
     ExprResult E = ParseCastExpression(
         CastParseKind::PrimaryExprOnly,
         /*isAddressOfOperand=*/false, TypoCorrectionTypeBehavior::AllowNonTypes,

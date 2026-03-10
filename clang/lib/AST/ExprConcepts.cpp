@@ -186,3 +186,13 @@ RequiresExpr::Create(ASTContext &C, EmptyShell Empty,
                  alignof(RequiresExpr));
   return new (Mem) RequiresExpr(C, Empty, NumLocalParameters, NumRequirements);
 }
+
+LifetimeConstraintExpr::LifetimeConstraintExpr(ASTContext &C,
+                                               SourceLocation AtLoc,
+                                               LifetimeParmDecl *Outliver,
+                                               SourceLocation ColonLoc,
+                                               LifetimeParmDecl *Outlived,
+                                               SourceLocation EndLoc)
+    : Expr(LifetimeConstraintExprClass, C.BoolTy, VK_PRValue, OK_Ordinary),
+      AtLoc(AtLoc), ColonLoc(ColonLoc), EndLoc(EndLoc),
+      OutliverParam(Outliver), OutlivedParam(Outlived) {}

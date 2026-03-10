@@ -14753,6 +14753,16 @@ public:
                                  bool *PossibleNonPrimary = nullptr,
                                  bool IsTrailingRequiresClause = false);
 
+  /// Create a lifetime constraint expression (@a : @b means @a outlives @b).
+  /// Validates that both operands refer to declared lifetime parameters.
+  ExprResult ActOnLifetimeConstraintExpr(Scope *S, SourceLocation FirstAtLoc,
+                                         IdentifierInfo *FirstIdent,
+                                         SourceLocation FirstIdentLoc,
+                                         SourceLocation ColonLoc,
+                                         SourceLocation SecondAtLoc,
+                                         IdentifierInfo *SecondIdent,
+                                         SourceLocation SecondIdentLoc);
+
   /// \brief Check whether the given list of constraint expressions are
   /// satisfied (as if in a 'conjunction') given template arguments.
   /// \param Template the template-like entity that triggered the constraints

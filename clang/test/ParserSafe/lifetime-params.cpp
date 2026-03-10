@@ -135,3 +135,20 @@ class NoTemplate {
 
 template<lifetime @a>
 void take_ref(int^@a ref) {}   // OK — @a resolves in function param
+
+// ==========================================================================
+// Test 16: Error — '@static' cannot be declared as a lifetime parameter.
+// ==========================================================================
+
+template<lifetime @static> // expected-error {{extraneous 'template<>' in declaration of class 'StaticRefHolder'}} expected-error {{'@static' cannot be used as a lifetime template parameter name}}
+class StaticRefHolder {
+  int^@static _ref;      // expected-error {{use of undeclared lifetime '@static'}}
+};
+
+// ==========================================================================
+// Test 17: Error — '@static' used without a lifetime parameter.
+// ==========================================================================
+
+class BadStaticLifetime {
+  int^@static _ref;      // expected-error {{use of undeclared lifetime '@static'}}
+};

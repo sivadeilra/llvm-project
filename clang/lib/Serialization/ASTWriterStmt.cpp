@@ -2409,6 +2409,16 @@ void ASTStmtWriter::VisitMizarUnsafeExpr(MizarUnsafeExpr *E) {
   Code = serialization::EXPR_MIZAR_UNSAFE;
 }
 
+void ASTStmtWriter::VisitLifetimeConstraintExpr(LifetimeConstraintExpr *E) {
+  VisitExpr(E);
+  Record.AddSourceLocation(E->getBeginLoc());
+  Record.AddDeclRef(E->getOutliverParam());
+  Record.AddSourceLocation(E->getColonLoc());
+  Record.AddDeclRef(E->getOutlivedParam());
+  Record.AddSourceLocation(E->getEndLoc());
+  Code = serialization::EXPR_LIFETIME_CONSTRAINT;
+}
+
 void ASTStmtWriter::VisitSEHLeaveStmt(SEHLeaveStmt *S) {
   VisitStmt(S);
   Record.AddSourceLocation(S->getLeaveLoc());

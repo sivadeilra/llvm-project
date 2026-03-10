@@ -2395,6 +2395,15 @@ void ASTStmtReader::VisitMizarUnsafeExpr(MizarUnsafeExpr *E) {
   E->RParenLoc = readSourceLocation();
 }
 
+void ASTStmtReader::VisitLifetimeConstraintExpr(LifetimeConstraintExpr *E) {
+  VisitExpr(E);
+  E->AtLoc = readSourceLocation();
+  E->setOutliverParam(Record.readDeclAs<LifetimeParmDecl>());
+  E->ColonLoc = readSourceLocation();
+  E->setOutlivedParam(Record.readDeclAs<LifetimeParmDecl>());
+  E->EndLoc = readSourceLocation();
+}
+
 //===----------------------------------------------------------------------===//
 // CUDA Expressions and Statements
 //===----------------------------------------------------------------------===//
@@ -3559,6 +3568,10 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
 
     case EXPR_MIZAR_UNSAFE:
       S = new (Context) MizarUnsafeExpr(Empty);
+      break;
+
+    case EXPR_LIFETIME_CONSTRAINT:
+      S = new (Context) LifetimeConstraintExpr(Empty);
       break;
 
     case STMT_CXX_CATCH:

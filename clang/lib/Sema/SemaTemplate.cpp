@@ -16,6 +16,7 @@
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/DynamicRecursiveASTVisitor.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprConcepts.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/TemplateName.h"
 #include "clang/AST/TypeVisitor.h"
@@ -1075,6 +1076,11 @@ NamedDecl *Sema::ActOnLifetimeParameter(Scope *S,
                                         unsigned Depth, unsigned Position) {
   assert(S->isTemplateParamScope() &&
          "Lifetime parameter not in template parameter scope!");
+
+  if (ParamName && ParamName->isStr("static")) {
+    Diag(ParamNameLoc, diag::err_lifetime_param_static_reserved);
+    return nullptr;
+  }
 
   LifetimeParmDecl *Param = LifetimeParmDecl::Create(
       Context, Context.getTranslationUnitDecl(), LifetimeKWLoc, ParamNameLoc,
@@ -11641,4 +11647,72 @@ SourceLocation Sema::getTopMostPointOfInstantiation(const NamedDecl *N) const {
     return CSC.PointOfInstantiation;
   }
   return N->getLocation();
+}
+
+/// Create a lifetime constraint expression in the form @a : @b,
+/// meaning @a outlives @b. Validates that both operands are
+/// declared lifetime parameters.
+ExprResult Sema::ActOnLifetimeConstraintExpr(Scope *S,
+                                             SourceLocation FirstAtLoc,
+                                             IdentifierInfo *FirstIdent,
+                                             SourceLocation FirstIdentLoc,
+                                             SourceLocation ColonLoc,
+                                             SourceLocation SecondAtLoc,
+                                             IdentifierInfo *SecondIdent,
+                                             SourceLocation SecondIdentLoc) {
+  if (!getLangOpts().TrackedReferences && !PP.isMizarEnabled()) {
+    Diag(FirstAtLoc, diag::err_lifetime_constraint_not_enabled);
+    return ExprError();
+  }
+
+  // Look up first lifetime parameter
+  LifetimeParmDecl *OutliverParam = nullptr;
+  {
+    LookupResult Result(*this, FirstIdent, FirstIdentLoc, LookupOrdinaryName);
+    LookupName(Result, S);
+
+    if (Result.empty()) {
+      Diag(FirstIdentLoc, diag::err_undeclared_lifetime_param) << FirstIdent;
+      return ExprError();
+    }
+
+    if (Result.isAmbiguous())
+      return ExprError();
+
+    NamedDecl *FirstDecl = Result.getFoundDecl();
+    OutliverParam = dyn_cast<LifetimeParmDecl>(FirstDecl);
+    if (!OutliverParam) {
+      Diag(FirstIdentLoc, diag::err_expected_lifetime_param) << FirstIdent;
+      return ExprError();
+    }
+  }
+
+  // Look up second lifetime parameter
+  LifetimeParmDecl *OutlivedParam = nullptr;
+  {
+    LookupResult Result(*this, SecondIdent, SecondIdentLoc, LookupOrdinaryName);
+    LookupName(Result, S);
+
+    if (Result.empty()) {
+      Diag(SecondIdentLoc, diag::err_undeclared_lifetime_param) << SecondIdent;
+      return ExprError();
+    }
+
+    if (Result.isAmbiguous())
+      return ExprError();
+
+    NamedDecl *SecondDecl = Result.getFoundDecl();
+    OutlivedParam = dyn_cast<LifetimeParmDecl>(SecondDecl);
+    if (!OutlivedParam) {
+      Diag(SecondIdentLoc, diag::err_expected_lifetime_param) << SecondIdent;
+      return ExprError();
+    }
+  }
+
+  // Create the LifetimeConstraintExpr
+  SourceLocation EndLoc = SecondIdentLoc;
+  auto *Expr = new (Context)
+      LifetimeConstraintExpr(Context, FirstAtLoc, OutliverParam,
+                             ColonLoc, OutlivedParam, EndLoc);
+  return Expr;
 }

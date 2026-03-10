@@ -3741,6 +3741,11 @@ public:
   /// \endverbatim
   ExprResult ParseConstraintExpression();
 
+  /// Parse a lifetime constraint expression in the form @a : @b.
+  /// Only parsed when Mizar tracked references are enabled.
+  /// This represents the constraint that lifetime @a outlives lifetime @b.
+  ExprResult ParseLifetimeConstraint();
+
   /// \brief Parse a constraint-logical-and-expression.
   ///
   /// \verbatim

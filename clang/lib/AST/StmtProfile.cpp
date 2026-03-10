@@ -397,6 +397,12 @@ void StmtProfiler::VisitMizarUnsafeExpr(const MizarUnsafeExpr *S) {
   VisitExpr(S);
 }
 
+void StmtProfiler::VisitLifetimeConstraintExpr(const LifetimeConstraintExpr *S) {
+  VisitExpr(S);
+  VisitDecl(S->getOutliverParam());
+  VisitDecl(S->getOutlivedParam());
+}
+
 void StmtProfiler::VisitCapturedStmt(const CapturedStmt *S) {
   VisitStmt(S);
 }

@@ -173,6 +173,7 @@ def CoyieldExpr : StmtNode<CoroutineSuspendExpr>;
 // C++20 Concepts expressions
 def ConceptSpecializationExpr : StmtNode<Expr>;
 def RequiresExpr : StmtNode<Expr>;
+def LifetimeConstraintExpr : StmtNode<Expr>;
 
 // Obj-C Expressions.
 def ObjCStringLiteral : StmtNode<Expr>;

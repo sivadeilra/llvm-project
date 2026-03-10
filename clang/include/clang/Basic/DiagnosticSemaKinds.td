@@ -13544,4 +13544,14 @@ def note_mizar_moved_here
 def note_mizar_borrow_still_live
     : Note<"borrow of %0 is still live">;
 
+// Lifetime constraint diagnostics
+def err_lifetime_constraint_not_enabled
+    : Error<"lifetime constraints require -ftracked-references or Mizar mode">;
+def err_undeclared_lifetime_param
+    : Error<"undeclared lifetime parameter '%0'">;
+def err_expected_lifetime_param
+    : Error<"'%0' is not a lifetime parameter">;
+def err_lifetime_param_static_reserved
+  : Error<"'@static' cannot be used as a lifetime template parameter name">;
+
 } // end of sema component.

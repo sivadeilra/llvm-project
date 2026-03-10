@@ -1953,6 +1953,7 @@ enum StmtCode {
   // Mizar safety extensions
   STMT_MIZAR_SAFETY,                // MizarSafetyStmt
   EXPR_MIZAR_UNSAFE,                // MizarUnsafeExpr
+  EXPR_LIFETIME_CONSTRAINT,         // LifetimeConstraintExpr
 
   // OpenMP directives
   STMT_OMP_META_DIRECTIVE,

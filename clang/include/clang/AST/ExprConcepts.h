@@ -588,6 +588,59 @@ public:
   }
 };
 
+/// \brief Represents a lifetime constraint expression in the form @a : @b,
+/// meaning lifetime parameter @a outlives lifetime parameter @b.
+/// Used in Mizar lifetime constraint expressions.
+///
+/// This is a special binary operator that validates at parse/semantic time
+/// that both operands refer to declared lifetime parameters.
+class LifetimeConstraintExpr final : public Expr {
+  friend class ASTReader;
+  friend class ASTStmtReader;
+
+private:
+  SourceLocation AtLoc;
+  SourceLocation ColonLoc;
+  SourceLocation EndLoc;
+  LifetimeParmDecl *OutliverParam;  // The @a in @a : @b
+  LifetimeParmDecl *OutlivedParam;  // The @b in @a : @b
+
+public:
+  LifetimeConstraintExpr(ASTContext &C, SourceLocation AtLoc,
+                         LifetimeParmDecl *Outliver,
+                         SourceLocation ColonLoc,
+                         LifetimeParmDecl *Outlived,
+                         SourceLocation EndLoc);
+
+  LifetimeConstraintExpr(EmptyShell Empty)
+      : Expr(LifetimeConstraintExprClass, Empty) {}
+
+  LifetimeParmDecl *getOutliverParam() const { return OutliverParam; }
+  void setOutliverParam(LifetimeParmDecl *P) { OutliverParam = P; }
+
+  LifetimeParmDecl *getOutlivedParam() const { return OutlivedParam; }
+  void setOutlivedParam(LifetimeParmDecl *P) { OutlivedParam = P; }
+
+  SourceLocation getColonLoc() const { return ColonLoc; }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == LifetimeConstraintExprClass;
+  }
+
+  SourceLocation getBeginLoc() const LLVM_READONLY { return AtLoc; }
+
+  SourceLocation getEndLoc() const LLVM_READONLY { return EndLoc; }
+
+  // Iterators
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
+  }
+};
+
 } // namespace clang
 
 #endif // LLVM_CLANG_AST_EXPRCONCEPTS_H

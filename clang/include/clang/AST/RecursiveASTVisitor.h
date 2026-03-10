@@ -2949,6 +2949,7 @@ DEF_TRAVERSE_STMT(SEHLeaveStmt, {})
 // Mizar safety extensions
 DEF_TRAVERSE_STMT(MizarSafetyStmt, {})
 DEF_TRAVERSE_STMT(MizarUnsafeExpr, {})
+DEF_TRAVERSE_STMT(LifetimeConstraintExpr, {})
 
 DEF_TRAVERSE_STMT(CapturedStmt, { TRY_TO(TraverseDecl(S->getCapturedDecl())); })
 
