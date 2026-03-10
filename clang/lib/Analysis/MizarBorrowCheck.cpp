@@ -533,6 +533,10 @@ private:
     else if (const auto *RS = dyn_cast<ReturnStmt>(S))
       handleReturn(RS);
 
+    // Detect assignment writes represented as nested/wrapped
+    // CXXOperatorCallExpr nodes (e.g. ExprWithCleanups around `p = Pair{...}`).
+    scanForWriteLikeExprs(S);
+
     // Scan the full expression tree for tracked-ref uses.
     scanForUses(S);
   }
@@ -627,24 +631,46 @@ private:
 
   /// Detect writes to local variables that may have loans.
   /// e.g. x = 42 when there's an outstanding borrow r = &x.
+  void handleWriteToLocal(const Expr *LHS, SourceLocation WriteLoc) {
+    AccessPath WritePath;
+    if (!buildAccessPathFromExpr(LHS, WritePath))
+      return;
+
+    const auto *RootVD = dyn_cast_or_null<VarDecl>(WritePath.getRootDecl());
+    if (RootVD && RootVD->hasLocalStorage() &&
+        !hasTrackedRefOrigin(RootVD->getType())) {
+      CurrentBlockFacts.push_back(
+          FM.createFact<WritePathFact>(std::move(WritePath), WriteLoc));
+    }
+  }
+
   void handleWriteToLocal(const BinaryOperator *BO) {
     if (!BO->isAssignmentOp())
       return;
-    // Skip if LHS is a tracked-ref variable (that's an origin update, not
-    // a write to a borrowed-from path).
-    const Expr *LHS = BO->getLHS();
-    AccessPath WritePath;
-    if (buildAccessPathFromExpr(LHS, WritePath)) {
-      const auto *RootVD = dyn_cast_or_null<VarDecl>(WritePath.getRootDecl());
-      if (RootVD && RootVD->hasLocalStorage() &&
-          !hasTrackedRefOrigin(RootVD->getType())) {
-        CurrentBlockFacts.push_back(FM.createFact<WritePathFact>(
-            std::move(WritePath), BO->getOperatorLoc()));
-      }
-    }
+    handleWriteToLocal(BO->getLHS(), BO->getOperatorLoc());
     // Check for dereference assignment: *r = ... where r is a tracked-ref
     // pointing at a borrowed variable. This is handled via UseOriginFact
     // (the dereference is a use of the origin, which is caught by scanForUses).
+  }
+
+  /// Detect writes represented as overloaded operator calls, e.g.
+  /// `p = Pair{...}` where assignment is expressed as CXXOperatorCallExpr.
+  void handleWriteToLocal(const CXXOperatorCallExpr *OpCall) {
+    if (OpCall->getOperator() != OO_Equal || OpCall->getNumArgs() < 1)
+      return;
+    handleWriteToLocal(OpCall->getArg(0), OpCall->getOperatorLoc());
+  }
+
+  /// Recursively scan for write-like operator-call assignments.
+  void scanForWriteLikeExprs(const Stmt *S) {
+    if (!S)
+      return;
+
+    if (const auto *OpCall = dyn_cast<CXXOperatorCallExpr>(S))
+      handleWriteToLocal(OpCall);
+
+    for (const Stmt *Child : S->children())
+      scanForWriteLikeExprs(Child);
   }
 
   /// Recursively scan an expression tree for tracked-ref uses.

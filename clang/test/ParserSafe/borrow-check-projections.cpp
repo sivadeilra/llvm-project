@@ -1,5 +1,4 @@
 // RUN: %clang_cc1 -fsyntax-only -ftracked-references -std=c++20 -verify %s
-// XFAIL: *
 //
 // Projection-aware borrow checking spec tests (Ladder 1).
 //
