@@ -61,12 +61,48 @@ enum class BorrowKind : uint8_t { Shared, Exclusive };
 /// A storage location being borrowed. For v1, just the root variable.
 /// Future: field paths (x.field), derefs, indexing.
 struct AccessPath {
-  const clang::ValueDecl *D;
-  AccessPath(const clang::ValueDecl *D) : D(D) {}
+  struct PathElement {
+    enum class Kind : uint8_t {
+      Field,
+    };
+
+    Kind K;
+    const void *Data;
+
+    static PathElement field(const FieldDecl *FD) {
+      return PathElement{Kind::Field, FD};
+    }
+
+    bool operator==(const PathElement &Other) const {
+      return K == Other.K && Data == Other.Data;
+    }
+  };
+
+  const clang::ValueDecl *Root;
+  llvm::SmallVector<PathElement, 2> Projections;
+
+  AccessPath() : Root(nullptr) {}
+  explicit AccessPath(const clang::ValueDecl *Root) : Root(Root) {}
+
+  const clang::ValueDecl *getRootDecl() const { return Root; }
+  void addFieldProjection(const FieldDecl *FD) {
+    Projections.push_back(PathElement::field(FD));
+  }
 
   /// Two paths conflict if either is a prefix of the other.
-  /// For v1 (no projections), conflict = equality of root.
-  bool conflictsWith(const AccessPath &Other) const { return D == Other.D; }
+  bool conflictsWith(const AccessPath &Other) const {
+    if (Root != Other.Root)
+      return false;
+
+    unsigned N = std::min(Projections.size(), Other.Projections.size());
+    for (unsigned I = 0; I < N; ++I) {
+      if (!(Projections[I] == Other.Projections[I]))
+        return false;
+    }
+
+    // All common prefixes match. Same path or parent/child paths conflict.
+    return true;
+  }
 };
 
 /// A type-safe, tagged ID wrapper (same pattern as LifetimeSafety.cpp).
@@ -233,19 +269,22 @@ public:
 
 /// A write to a storage location that may have active loans.
 class WritePathFact : public Fact {
-  const clang::ValueDecl *Target;
+  AccessPath Path;
   SourceLocation Loc;
 
 public:
   static bool classof(const Fact *F) { return F->getKind() == WritePath; }
 
-  WritePathFact(const clang::ValueDecl *T, SourceLocation L)
-      : Fact(WritePath), Target(T), Loc(L) {}
-  const clang::ValueDecl *getTarget() const { return Target; }
+  WritePathFact(AccessPath P, SourceLocation L)
+      : Fact(WritePath), Path(std::move(P)), Loc(L) {}
+  const AccessPath &getPath() const { return Path; }
   SourceLocation getWriteLoc() const { return Loc; }
 
   void dump(llvm::raw_ostream &OS) const override {
-    OS << "WritePath (" << Target->getNameAsString() << ")\n";
+    if (const auto *Root = Path.getRootDecl())
+      OS << "WritePath (" << Root->getNameAsString() << ")\n";
+    else
+      OS << "WritePath (<invalid>)\n";
   }
 };
 
@@ -369,23 +408,60 @@ static BorrowKind getTrackedRefBorrowKind(QualType QT) {
 
 /// Look through implicit casts and parens to find an address-of expression
 /// targeting a local variable. Returns (BorrowedVar, AddrOfExpr) or nulls.
-static std::pair<const VarDecl *, const UnaryOperator *>
-findAddressOf(const Expr *E) {
+static bool buildAccessPathFromExpr(const Expr *E, AccessPath &Out) {
   if (!E)
-    return {nullptr, nullptr};
+    return false;
+
+  E = E->IgnoreParenImpCasts();
+
+  if (const auto *DRE = dyn_cast<DeclRefExpr>(E)) {
+    if (const auto *VD = dyn_cast<VarDecl>(DRE->getDecl())) {
+      if (!VD->hasLocalStorage())
+        return false;
+      Out = AccessPath(VD);
+      return true;
+    }
+    return false;
+  }
+
+  if (const auto *ME = dyn_cast<MemberExpr>(E)) {
+    if (ME->isArrow())
+      return false;
+    const auto *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
+    if (!FD)
+      return false;
+
+    AccessPath Base;
+    if (!buildAccessPathFromExpr(ME->getBase(), Base))
+      return false;
+
+    Base.addFieldProjection(FD);
+    Out = std::move(Base);
+    return true;
+  }
+
+  return false;
+}
+
+/// Look through implicit casts and parens to find an address-of expression
+/// targeting a local variable/path. Returns true with path and addr location
+/// if successful.
+static bool findAddressOfPath(const Expr *E, AccessPath &OutPath,
+                              SourceLocation &AddrLoc) {
+  if (!E)
+    return false;
   E = E->IgnoreParenImpCasts();
   if (const auto *UO = dyn_cast<UnaryOperator>(E)) {
     if (UO->getOpcode() == UO_AddrOf) {
-      const Expr *Sub = UO->getSubExpr()->IgnoreParenImpCasts();
-      if (const auto *DRE = dyn_cast<DeclRefExpr>(Sub)) {
-        if (const auto *VD = dyn_cast<VarDecl>(DRE->getDecl())) {
-          if (VD->hasLocalStorage())
-            return {VD, UO};
-        }
+      AccessPath SubPath;
+      if (buildAccessPathFromExpr(UO->getSubExpr(), SubPath)) {
+        OutPath = std::move(SubPath);
+        AddrLoc = UO->getOperatorLoc();
+        return true;
       }
     }
   }
-  return {nullptr, nullptr};
+  return false;
 }
 
 /// Find a DeclRefExpr to a local tracked-reference variable through casts.
@@ -474,15 +550,15 @@ private:
         continue;
 
       // Case 1: T^ r = &x  →  IssueFact(new_loan, origin(r))
-      auto [BorrowedVD, AddrOfExpr] = findAddressOf(Init);
-      if (BorrowedVD) {
+      AccessPath BorrowedPath;
+      SourceLocation AddrLoc;
+      if (findAddressOfPath(Init, BorrowedPath, AddrLoc)) {
         BorrowKind Kind = getTrackedRefBorrowKind(VD->getType());
         OriginID OID = FM.getOriginMgr().getOrCreate(*VD);
         if (Kind == BorrowKind::Exclusive)
           FM.getOriginMgr().markExclusive(OID);
-        AccessPath Path(BorrowedVD);
-        Loan &L = FM.getLoanMgr().addLoan(Path, Kind,
-                                          AddrOfExpr->getOperatorLoc());
+        Loan &L = FM.getLoanMgr().addLoan(std::move(BorrowedPath), Kind,
+                                          AddrLoc);
         CurrentBlockFacts.push_back(
             FM.createFact<IssueFact>(L.ID, OID, Kind));
         continue;
@@ -513,15 +589,15 @@ private:
       return;
 
     // Case 1: r = &x  →  IssueFact (new loan replaces old)
-    auto [BorrowedVD, AddrOfExpr] = findAddressOf(BO->getRHS());
-    if (BorrowedVD) {
+    AccessPath BorrowedPath;
+    SourceLocation AddrLoc;
+    if (findAddressOfPath(BO->getRHS(), BorrowedPath, AddrLoc)) {
       BorrowKind Kind = getTrackedRefBorrowKind(LhsVD->getType());
       OriginID OID = FM.getOriginMgr().getOrCreate(*LhsVD);
       if (Kind == BorrowKind::Exclusive)
         FM.getOriginMgr().markExclusive(OID);
-      AccessPath Path(BorrowedVD);
-      Loan &L = FM.getLoanMgr().addLoan(Path, Kind,
-                                        AddrOfExpr->getOperatorLoc());
+      Loan &L = FM.getLoanMgr().addLoan(std::move(BorrowedPath), Kind,
+                                        AddrLoc);
       CurrentBlockFacts.push_back(
           FM.createFact<IssueFact>(L.ID, OID, Kind));
       return;
@@ -556,13 +632,14 @@ private:
       return;
     // Skip if LHS is a tracked-ref variable (that's an origin update, not
     // a write to a borrowed-from path).
-    const Expr *LHS = BO->getLHS()->IgnoreParenImpCasts();
-    // Check for direct assignment: x = ...
-    if (const auto *DRE = dyn_cast<DeclRefExpr>(LHS)) {
-      const auto *VD = dyn_cast<VarDecl>(DRE->getDecl());
-      if (VD && VD->hasLocalStorage() && !hasTrackedRefOrigin(VD->getType())) {
-        CurrentBlockFacts.push_back(
-            FM.createFact<WritePathFact>(VD, BO->getOperatorLoc()));
+    const Expr *LHS = BO->getLHS();
+    AccessPath WritePath;
+    if (buildAccessPathFromExpr(LHS, WritePath)) {
+      const auto *RootVD = dyn_cast_or_null<VarDecl>(WritePath.getRootDecl());
+      if (RootVD && RootVD->hasLocalStorage() &&
+          !hasTrackedRefOrigin(RootVD->getType())) {
+        CurrentBlockFacts.push_back(FM.createFact<WritePathFact>(
+            std::move(WritePath), BO->getOperatorLoc()));
       }
     }
     // Check for dereference assignment: *r = ... where r is a tracked-ref
@@ -646,7 +723,7 @@ private:
     if (!VD)
       return;
     for (const Loan &L : FM.getLoanMgr().getLoans()) {
-      if (L.Path.D == VD)
+      if (L.Path.getRootDecl() == VD)
         CurrentBlockFacts.push_back(FM.createFact<ExpireFact>(L.ID));
     }
   }
@@ -1270,16 +1347,19 @@ private:
 
         // Conflict detected!
         if (NewLoan.Kind == BorrowKind::Exclusive) {
-          Handler.handleExclusiveBorrowConflict(
-              NewLoan.IssueLoc, NewLoan.Path.D, Existing.IssueLoc,
+            Handler.handleExclusiveBorrowConflict(
+              NewLoan.IssueLoc,
+              dyn_cast<NamedDecl>(NewLoan.Path.getRootDecl()), Existing.IssueLoc,
               Existing.Kind == BorrowKind::Exclusive);
           return; // One error per issue fact.
         }
 
         if (NewLoan.Kind == BorrowKind::Shared &&
             Existing.Kind == BorrowKind::Exclusive) {
-          Handler.handleSharedWhileExclusive(NewLoan.IssueLoc, NewLoan.Path.D,
-                                             Existing.IssueLoc);
+            Handler.handleSharedWhileExclusive(
+              NewLoan.IssueLoc,
+              dyn_cast<NamedDecl>(NewLoan.Path.getRootDecl()),
+              Existing.IssueLoc);
           return;
         }
         // Shared + Shared: no conflict.
@@ -1307,8 +1387,9 @@ private:
         SourceLocation UseLoc = findNextUse(OID, B, FactIdx + 1);
 
         Handler.handleDoesNotLiveLongEnough(
-            ExpiredLoan.Path.D, ExpiredLoan.IssueLoc,
-            ExpiredLoan.Kind == BorrowKind::Exclusive, UseLoc);
+            dyn_cast<NamedDecl>(ExpiredLoan.Path.getRootDecl()),
+            ExpiredLoan.IssueLoc, ExpiredLoan.Kind == BorrowKind::Exclusive,
+            UseLoc);
         return;
       }
     }
@@ -1403,8 +1484,6 @@ private:
   /// Check a WritePathFact: writing to a local while an origin borrows it.
   void checkWritePathFact(const WritePathFact *WF, const LoanLattice &State,
                           const llvm::BitVector &Live) {
-    const ValueDecl *WrittenVar = WF->getTarget();
-
     for (const auto &Entry : State.Origins) {
       OriginID OID = Entry.first;
       if (OID.Value >= Live.size() || !Live[OID.Value])
@@ -1412,8 +1491,10 @@ private:
 
       for (LoanID LID : Entry.second) {
         const Loan &L = FM.getLoanMgr().getLoan(LID);
-        if (L.Path.D == WrittenVar) {
-          Handler.handleWriteWhileBorrowed(WF->getWriteLoc(), WrittenVar,
+        if (L.Path.conflictsWith(WF->getPath())) {
+          const auto *Root = dyn_cast_or_null<NamedDecl>(
+              WF->getPath().getRootDecl());
+          Handler.handleWriteWhileBorrowed(WF->getWriteLoc(), Root,
                                            L.IssueLoc);
           return;
         }
