@@ -13496,6 +13496,10 @@ def err_lifetime_does_not_outlive
 def note_add_lifetime_constraint_suggestion
     : Note<"add 'requires @%0 : @%1' to the template to establish this constraint">;
 
+// DEBUG: Mizar debug output
+def err_mizar_debug_msg
+    : Error<"MIZAR DEBUG: %0">;
+
 // Mizar safety context diagnostics
 def warn_mizar_unsafe_call_in_safe_context
     : Warning<"call to unsafe %select{function|method}0 %1 requires an unsafe context">,

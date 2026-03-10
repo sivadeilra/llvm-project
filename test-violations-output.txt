@@ -1,0 +1,29 @@
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\config.py:57: note: using lit tools: C:\Program Files\Git\usr\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\config.py:520: note: using clang: d:\llvm.mizar\build\bin\clang.exe
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find apinotes-test in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find c-index-test in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find cir-opt in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find clang-diff in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find clang-format in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find clang-repl in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find clang-offload-packager in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find clang-scan-deps in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find clang-installapi in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find opt in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find llvm-ifs in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find yaml2obj in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find clang-linker-wrapper in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find clang-nvlink-wrapper in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find clang-sycl-linker in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find llvm-lto in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find llvm-lto2 in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find llvm-profdata in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find llvm-readtapi in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+llvm-lit.py: D:\llvm.mizar\llvm\utils\lit\lit\llvm\subst.py:126: note: Did not find clang-check in D:\llvm.mizar\build\bin;D:\llvm.mizar\build\bin
+-- Testing: 1 tests, 1 workers --
+XFAIL: Clang :: ParserSafe/lifetime-outlives-violations.cpp (1 of 1)
+
+Testing Time: 0.53s
+
+Total Discovered Tests: 1
+  Expectedly Failed: 1 (100.00%)

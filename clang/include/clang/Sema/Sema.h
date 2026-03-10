@@ -10113,7 +10113,8 @@ public:
   /// is a lifetime incompatibility. Emits diagnostics on failure.
   bool CheckTrackedReferenceLifetimeCompatibility(QualType FromType,
                                                   QualType ToType,
-                                                  SourceLocation Loc);
+                                                  SourceLocation Loc,
+                                                  bool AllowRecovery = true);
 
   /// FunctionParamTypesAreEqual - This routine checks two function proto types
   /// for equality of their parameter types. Caller has already checked that
