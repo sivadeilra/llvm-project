@@ -10104,6 +10104,17 @@ public:
                                     QualType ToType,
                                     QualType &ConvertedType);
 
+  /// CheckTrackedReferenceLifetimeCompatibility - Verify that the lifetime
+  /// of a source tracked reference is compatible with a target tracked reference
+  /// in the context of a template function. If both FromType and ToType are
+  /// tracked reference types, validates that the source lifetime outlives
+  /// the target lifetime according to the template's requires clauses.
+  /// Returns true if the check passes (or is not applicable), false if there
+  /// is a lifetime incompatibility. Emits diagnostics on failure.
+  bool CheckTrackedReferenceLifetimeCompatibility(QualType FromType,
+                                                  QualType ToType,
+                                                  SourceLocation Loc);
+
   /// FunctionParamTypesAreEqual - This routine checks two function proto types
   /// for equality of their parameter types. Caller has already checked that
   /// they have same number of parameters.  If the parameters are different,

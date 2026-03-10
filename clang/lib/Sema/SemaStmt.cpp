@@ -4142,6 +4142,15 @@ StmtResult Sema::BuildReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp,
       }
       RetValExp = Res.getAs<Expr>();
 
+      // Check lifetime compatibility for tracked references
+      if (!CheckTrackedReferenceLifetimeCompatibility(RetValExp->getType(),
+                                                      FnRetType, ReturnLoc)) {
+        // Lifetime compatibility check failed; error already emitted
+        if (!AllowRecovery)
+          return StmtError();
+        // In recovery mode, we still proceed but with the error recorded
+      }
+
       // If we have a related result type, we need to implicitly
       // convert back to the formal result type.  We can't pretend to
       // initialize the result again --- we might end double-retaining

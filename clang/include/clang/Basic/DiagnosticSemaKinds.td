@@ -13490,6 +13490,12 @@ def err_mizar_undeclared_lifetime
 def err_mizar_not_a_lifetime
     : Error<"%0 does not name a lifetime parameter">;
 
+// Mizar lifetime outlives diagnostics
+def err_lifetime_does_not_outlive
+    : Error<"lifetime '@%0' does not outlive '@%1'">;
+def note_add_lifetime_constraint_suggestion
+    : Note<"add 'requires @%0 : @%1' to the template to establish this constraint">;
+
 // Mizar safety context diagnostics
 def warn_mizar_unsafe_call_in_safe_context
     : Warning<"call to unsafe %select{function|method}0 %1 requires an unsafe context">,
