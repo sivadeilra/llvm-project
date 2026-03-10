@@ -23,6 +23,7 @@ add_clang_library(clangSema
   HLSLBuiltinTypeDeclBuilder.cpp
   HLSLExternalSemaSource.cpp
   IdentifierResolver.cpp
+  OutlivesRelation.cpp
   JumpDiagnostics.cpp
   MultiplexExternalSemaSource.cpp
   ParsedAttr.cpp
