@@ -3389,7 +3389,8 @@ bool Sema::IsTrackedReferenceConversion(Expr *From, QualType FromType,
     if (auto *CE = dyn_cast<CastExpr>(Root)) {
       CastKind CK = CE->getCastKind();
       if (CK == CK_NoOp || CK == CK_DerivedToBase ||
-          CK == CK_UncheckedDerivedToBase) {
+          CK == CK_UncheckedDerivedToBase || CK == CK_ArrayToPointerDecay ||
+          CK == CK_LValueToRValue) {
         Root = CE->getSubExpr();
         continue;
       }
@@ -3401,6 +3402,17 @@ bool Sema::IsTrackedReferenceConversion(Expr *From, QualType FromType,
     if (auto *ASE = dyn_cast<ArraySubscriptExpr>(Root)) {
       Root = ASE->getBase();
       continue;
+    }
+    if (auto *UO = dyn_cast<UnaryOperator>(Root)) {
+      if (UO->getOpcode() == UO_Deref) {
+        Expr *Sub = UO->getSubExpr()->IgnoreParenImpCasts();
+        if (auto *Addr = dyn_cast<UnaryOperator>(Sub)) {
+          if (Addr->getOpcode() == UO_AddrOf) {
+            Root = Addr->getSubExpr();
+            continue;
+          }
+        }
+      }
     }
     break;
   }

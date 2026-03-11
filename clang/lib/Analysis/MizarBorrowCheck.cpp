@@ -64,6 +64,8 @@ struct AccessPath {
   struct PathElement {
     enum class Kind : uint8_t {
       Field,
+      Deref,
+      Index,
     };
 
     Kind K;
@@ -72,6 +74,10 @@ struct AccessPath {
     static PathElement field(const FieldDecl *FD) {
       return PathElement{Kind::Field, FD};
     }
+
+    static PathElement deref() { return PathElement{Kind::Deref, nullptr}; }
+
+    static PathElement index() { return PathElement{Kind::Index, nullptr}; }
 
     bool operator==(const PathElement &Other) const {
       return K == Other.K && Data == Other.Data;
@@ -88,6 +94,8 @@ struct AccessPath {
   void addFieldProjection(const FieldDecl *FD) {
     Projections.push_back(PathElement::field(FD));
   }
+  void addDerefProjection() { Projections.push_back(PathElement::deref()); }
+  void addIndexProjection() { Projections.push_back(PathElement::index()); }
 
   /// Two paths conflict if either is a prefix of the other.
   bool conflictsWith(const AccessPath &Other) const {
@@ -417,8 +425,27 @@ static bool buildAccessPathFromExpr(const Expr *E, AccessPath &Out) {
   if (const auto *CE = dyn_cast<CastExpr>(E)) {
     CastKind CK = CE->getCastKind();
     if (CK == CK_NoOp || CK == CK_DerivedToBase ||
-        CK == CK_UncheckedDerivedToBase)
+        CK == CK_UncheckedDerivedToBase || CK == CK_ArrayToPointerDecay ||
+        CK == CK_LValueToRValue)
       return buildAccessPathFromExpr(CE->getSubExpr(), Out);
+  }
+
+  // Canonicalize *(&x) to x so deref/addrof wrappers don't lose path info.
+  if (const auto *UO = dyn_cast<UnaryOperator>(E)) {
+    if (UO->getOpcode() == UO_Deref) {
+      const Expr *Sub = UO->getSubExpr()->IgnoreParenImpCasts();
+      if (const auto *Addr = dyn_cast<UnaryOperator>(Sub)) {
+        if (Addr->getOpcode() == UO_AddrOf)
+          return buildAccessPathFromExpr(Addr->getSubExpr(), Out);
+      }
+
+      AccessPath Base;
+      if (!buildAccessPathFromExpr(Sub, Base))
+        return false;
+      Base.addDerefProjection();
+      Out = std::move(Base);
+      return true;
+    }
   }
 
   if (const auto *DRE = dyn_cast<DeclRefExpr>(E)) {
@@ -443,6 +470,18 @@ static bool buildAccessPathFromExpr(const Expr *E, AccessPath &Out) {
       return false;
 
     Base.addFieldProjection(FD);
+    Out = std::move(Base);
+    return true;
+  }
+
+  if (const auto *ASE = dyn_cast<ArraySubscriptExpr>(E)) {
+    AccessPath Base;
+    if (!buildAccessPathFromExpr(ASE->getBase(), Base))
+      return false;
+
+    // Conservative policy for now: all indexed accesses under the same base
+    // may alias, so the index projection does not distinguish concrete indices.
+    Base.addIndexProjection();
     Out = std::move(Base);
     return true;
   }
