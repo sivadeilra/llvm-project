@@ -27,8 +27,8 @@ void p1_disjoint_exclusive_ok() safe {
 // --------------------------------------------------------------------------
 void p2_same_field_exclusive_conflict() safe {
   Pair p{1, 2};
-  int^ mut r1 = &p.x; // expected-note {{exclusive borrow of 'p' created here}}
-  int^ mut r2 = &p.x; // expected-warning {{cannot borrow 'p' as exclusive because it is already borrowed}}
+  int^ mut r1 = &p.x; // expected-note {{exclusive borrow of 'p.x' created here}}
+  int^ mut r2 = &p.x; // expected-warning {{cannot borrow 'p.x' as exclusive because it is already borrowed}}
   *r1 = 1;
   *r2 = 2;
 }
@@ -38,8 +38,8 @@ void p2_same_field_exclusive_conflict() safe {
 // --------------------------------------------------------------------------
 void p3_parent_child_exclusive_conflict() safe {
   Pair p{1, 2};
-  Pair^ mut whole = &p; // expected-note {{exclusive borrow of 'p' created here}}
-  int^ mut field = &p.x; // expected-warning {{cannot borrow 'p' as exclusive because it is already borrowed}}
+  Pair^ mut whole = &p; // expected-note {{exclusive borrow of 'p.x' created here}}
+  int^ mut field = &p.x; // expected-warning {{cannot borrow 'p.x' as exclusive because it is already borrowed}}
   (*whole).y = 3;
   *field = 4;
 }
@@ -49,8 +49,8 @@ void p3_parent_child_exclusive_conflict() safe {
 // --------------------------------------------------------------------------
 void p4_parent_child_shared_exclusive_conflict() safe {
   Pair p{1, 2};
-  Pair^ s = &p; // expected-note {{shared borrow of 'p' created here}}
-  int^ mut m = &p.x; // expected-warning {{cannot borrow 'p' as exclusive because it is already borrowed}}
+  Pair^ s = &p; // expected-note {{shared borrow of 'p.x' created here}}
+  int^ mut m = &p.x; // expected-warning {{cannot borrow 'p.x' as exclusive because it is already borrowed}}
   (void)(*s).x;
   *m = 3;
 }
@@ -71,9 +71,9 @@ void p5_disjoint_shared_exclusive_ok() safe {
 // --------------------------------------------------------------------------
 void p6_write_conflict_and_disjoint_ok() safe {
   Pair p{1, 2};
-  int^ mut rx = &p.x; // expected-note {{borrow of 'p' is still live}}
+  int^ mut rx = &p.x; // expected-note {{borrow of 'p.x' is still live}}
   p.y = 11; // OK: write to disjoint field
-  p.x = 12; // expected-warning {{cannot assign to 'p' because it is borrowed}}
+  p.x = 12; // expected-warning {{cannot assign to 'p.x' because it is borrowed}}
   *rx = 13;
 }
 

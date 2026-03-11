@@ -23,8 +23,8 @@ void l1_same_field_dead_borrow_ok() safe {
 // --------------------------------------------------------------------------
 void l2_same_field_branch_keeps_alive(bool cond) safe {
   Pair p{1, 2};
-  int^ mut r1 = &p.x; // expected-note {{exclusive borrow of 'p' created here}}
-  int^ mut r2 = &p.x; // expected-warning {{cannot borrow 'p' as exclusive because it is already borrowed}}
+  int^ mut r1 = &p.x; // expected-note {{exclusive borrow of 'p.x' created here}}
+  int^ mut r2 = &p.x; // expected-warning {{cannot borrow 'p.x' as exclusive because it is already borrowed}}
   if (cond)
     *r1 = 1; // future use keeps r1 live at r2
   *r2 = 2;

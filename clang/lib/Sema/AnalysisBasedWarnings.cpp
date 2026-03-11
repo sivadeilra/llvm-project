@@ -3033,31 +3033,31 @@ void clang::sema::AnalysisBasedWarnings::IssueWarnings(
         explicit SemaBorrowHandler(Sema &S) : SemaRef(S) {}
 
         void handleExclusiveBorrowConflict(
-            SourceLocation NewBorrowLoc, const NamedDecl *Path,
+            SourceLocation NewBorrowLoc, llvm::StringRef PathText,
             SourceLocation ExistingLoc, bool ExistingIsExclusive) override {
           SemaRef.Diag(NewBorrowLoc,
                        diag::warn_mizar_exclusive_borrow_conflict)
-              << Path;
+              << PathText;
           SemaRef.Diag(ExistingLoc, diag::note_mizar_borrow_created_here)
-              << ExistingIsExclusive << Path;
+              << ExistingIsExclusive << PathText;
         }
 
         void handleSharedWhileExclusive(
-            SourceLocation NewBorrowLoc, const NamedDecl *Path,
+            SourceLocation NewBorrowLoc, llvm::StringRef PathText,
             SourceLocation ExclusiveLoc) override {
           SemaRef.Diag(NewBorrowLoc,
                        diag::warn_mizar_shared_while_exclusive)
-              << Path;
+              << PathText;
           SemaRef.Diag(ExclusiveLoc, diag::note_mizar_borrow_created_here)
-              << /*IsExclusive=*/true << Path;
+              << /*IsExclusive=*/true << PathText;
         }
 
         void handleDoesNotLiveLongEnough(
-            const NamedDecl *DroppedVar, SourceLocation BorrowLoc,
+            llvm::StringRef DroppedPathText, SourceLocation BorrowLoc,
             bool BorrowIsExclusive, SourceLocation UseLoc) override {
           SemaRef.Diag(BorrowLoc,
                        diag::warn_mizar_does_not_live_long_enough)
-              << DroppedVar;
+              << DroppedPathText;
           if (UseLoc.isValid())
             SemaRef.Diag(UseLoc, diag::note_mizar_borrow_used_here)
                 << BorrowIsExclusive;
@@ -3078,12 +3078,12 @@ void clang::sema::AnalysisBasedWarnings::IssueWarnings(
         }
 
         void handleWriteWhileBorrowed(SourceLocation WriteLoc,
-                                      const NamedDecl *Var,
+                        llvm::StringRef PathText,
                                       SourceLocation BorrowLoc) override {
           SemaRef.Diag(WriteLoc, diag::warn_mizar_write_while_borrowed)
-              << Var;
+            << PathText;
           SemaRef.Diag(BorrowLoc, diag::note_mizar_borrow_still_live)
-              << Var;
+            << PathText;
         }
       };
 

@@ -23,12 +23,12 @@
 #define LLVM_CLANG_ANALYSIS_ANALYSES_MIZARBORROWCHECK_H
 
 #include "clang/Basic/SourceLocation.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace clang {
 
 class ASTContext;
 class FunctionDecl;
-class NamedDecl;
 
 /// Handler interface for borrow-check diagnostics.
 ///
@@ -41,30 +41,30 @@ struct MizarBorrowCheckHandler {
   /// A new exclusive borrow conflicts with an existing borrow on the same path.
   ///
   /// \param NewBorrowLoc   Where the conflicting new borrow is created.
-  /// \param Path           The storage location being borrowed (root variable).
+  /// \param PathText       Display text for the borrowed path.
   /// \param ExistingLoc    Where the existing conflicting borrow was created.
   /// \param ExistingIsExclusive  Whether the existing borrow is exclusive.
   virtual void handleExclusiveBorrowConflict(SourceLocation NewBorrowLoc,
-                                             const NamedDecl *Path,
+                                             llvm::StringRef PathText,
                                              SourceLocation ExistingLoc,
                                              bool ExistingIsExclusive) = 0;
 
   /// A new shared borrow conflicts with an existing exclusive borrow.
   ///
   /// \param NewBorrowLoc   Where the conflicting shared borrow is created.
-  /// \param Path           The storage location being borrowed.
+  /// \param PathText       Display text for the borrowed path.
   /// \param ExclusiveLoc   Where the existing exclusive borrow was created.
   virtual void handleSharedWhileExclusive(SourceLocation NewBorrowLoc,
-                                          const NamedDecl *Path,
+                                          llvm::StringRef PathText,
                                           SourceLocation ExclusiveLoc) = 0;
 
   /// A variable's storage ends while a borrow of it is still live.
   ///
-  /// \param DroppedVar     The variable whose storage ends too soon.
+  /// \param DroppedPathText Display text for the borrowed path whose storage ends too soon.
   /// \param BorrowLoc      Where the borrow was created.
   /// \param BorrowIsExclusive  Whether the borrow is exclusive.
   /// \param UseLoc         Where the borrow is used after the drop (if found).
-  virtual void handleDoesNotLiveLongEnough(const NamedDecl *DroppedVar,
+  virtual void handleDoesNotLiveLongEnough(llvm::StringRef DroppedPathText,
                                            SourceLocation BorrowLoc,
                                            bool BorrowIsExclusive,
                                            SourceLocation UseLoc) = 0;
@@ -87,10 +87,10 @@ struct MizarBorrowCheckHandler {
   /// A variable is assigned while a borrow (loan) of it is still live.
   ///
   /// \param WriteLoc   Where the write to the borrowed variable occurs.
-  /// \param Var        The variable being written to.
+  /// \param PathText   Display text for the written path.
   /// \param BorrowLoc  Where the conflicting borrow was created.
   virtual void handleWriteWhileBorrowed(SourceLocation WriteLoc,
-                                        const NamedDecl *Var,
+                                        llvm::StringRef PathText,
                                         SourceLocation BorrowLoc) = 0;
 };
 

@@ -45,6 +45,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include <string>
 #include <cstdint>
 
 #define DEBUG_TYPE "mizar-borrow-check"
@@ -508,6 +509,36 @@ static bool findAddressOfPath(const Expr *E, AccessPath &OutPath,
     }
   }
   return false;
+}
+
+static std::string renderAccessPathForDiag(const AccessPath &Path) {
+  const auto *Root = Path.getRootDecl();
+  if (!Root)
+    return "<invalid>";
+
+  std::string Text;
+  llvm::raw_string_ostream OS(Text);
+  OS << '\'' << Root->getNameAsString();
+  for (const auto &Elt : Path.Projections) {
+    switch (Elt.K) {
+    case AccessPath::PathElement::Kind::Field: {
+      const auto *FD = static_cast<const FieldDecl *>(Elt.Data);
+      if (FD)
+        OS << '.' << FD->getNameAsString();
+      else
+        OS << ".<field>";
+      break;
+    }
+    case AccessPath::PathElement::Kind::Deref:
+      OS << ".*";
+      break;
+    case AccessPath::PathElement::Kind::Index:
+      OS << "[_]";
+      break;
+    }
+  }
+  OS << '\'';
+  return std::move(OS.str());
 }
 
 /// Find a DeclRefExpr to a local tracked-reference variable through casts.
@@ -1419,19 +1450,18 @@ private:
 
         // Conflict detected!
         if (NewLoan.Kind == BorrowKind::Exclusive) {
-            Handler.handleExclusiveBorrowConflict(
-              NewLoan.IssueLoc,
-              dyn_cast<NamedDecl>(NewLoan.Path.getRootDecl()), Existing.IssueLoc,
+          const std::string PathText = renderAccessPathForDiag(NewLoan.Path);
+          Handler.handleExclusiveBorrowConflict(
+              NewLoan.IssueLoc, PathText, Existing.IssueLoc,
               Existing.Kind == BorrowKind::Exclusive);
           return; // One error per issue fact.
         }
 
         if (NewLoan.Kind == BorrowKind::Shared &&
             Existing.Kind == BorrowKind::Exclusive) {
-            Handler.handleSharedWhileExclusive(
-              NewLoan.IssueLoc,
-              dyn_cast<NamedDecl>(NewLoan.Path.getRootDecl()),
-              Existing.IssueLoc);
+          const std::string PathText = renderAccessPathForDiag(NewLoan.Path);
+          Handler.handleSharedWhileExclusive(NewLoan.IssueLoc, PathText,
+                                             Existing.IssueLoc);
           return;
         }
         // Shared + Shared: no conflict.
@@ -1458,10 +1488,11 @@ private:
         // A live origin holds the expiring loan → dangling reference!
         SourceLocation UseLoc = findNextUse(OID, B, FactIdx + 1);
 
+        const std::string PathText =
+          renderAccessPathForDiag(ExpiredLoan.Path);
         Handler.handleDoesNotLiveLongEnough(
-            dyn_cast<NamedDecl>(ExpiredLoan.Path.getRootDecl()),
-            ExpiredLoan.IssueLoc, ExpiredLoan.Kind == BorrowKind::Exclusive,
-            UseLoc);
+          PathText, ExpiredLoan.IssueLoc,
+          ExpiredLoan.Kind == BorrowKind::Exclusive, UseLoc);
         return;
       }
     }
@@ -1564,9 +1595,9 @@ private:
       for (LoanID LID : Entry.second) {
         const Loan &L = FM.getLoanMgr().getLoan(LID);
         if (L.Path.conflictsWith(WF->getPath())) {
-          const auto *Root = dyn_cast_or_null<NamedDecl>(
-              WF->getPath().getRootDecl());
-          Handler.handleWriteWhileBorrowed(WF->getWriteLoc(), Root,
+          const std::string PathText =
+              renderAccessPathForDiag(WF->getPath());
+          Handler.handleWriteWhileBorrowed(WF->getWriteLoc(), PathText,
                                            L.IssueLoc);
           return;
         }

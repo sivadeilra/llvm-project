@@ -23,8 +23,8 @@ void d1_deref_of_addrof_local_ok() safe {
 // --------------------------------------------------------------------------
 void d2_deref_parent_child_conflict() safe {
   Pair p{1, 2};
-  Pair^ mut whole = &p; // expected-note {{exclusive borrow of 'p' created here}}
-  int^ mut rx = &(*(&p)).x; // expected-warning {{cannot borrow 'p' as exclusive because it is already borrowed}}
+  Pair^ mut whole = &p; // expected-note {{exclusive borrow of 'p.x' created here}}
+  int^ mut rx = &(*(&p)).x; // expected-warning {{cannot borrow 'p.x' as exclusive because it is already borrowed}}
   (*whole).y = 5;
   *rx = 6;
 }
@@ -34,8 +34,8 @@ void d2_deref_parent_child_conflict() safe {
 // --------------------------------------------------------------------------
 void i1_index_conservative_aliasing() safe {
   int a[2] = {1, 2};
-  int^ mut i0 = &a[0]; // expected-note {{exclusive borrow of 'a' created here}}
-  int^ mut i1 = &a[1]; // expected-warning {{cannot borrow 'a' as exclusive because it is already borrowed}}
+  int^ mut i0 = &a[0]; // expected-note {{exclusive borrow of 'a[_]' created here}}
+  int^ mut i1 = &a[1]; // expected-warning {{cannot borrow 'a[_]' as exclusive because it is already borrowed}}
   *i0 = 3;
   *i1 = 4;
 }
@@ -45,7 +45,7 @@ void i1_index_conservative_aliasing() safe {
 // --------------------------------------------------------------------------
 void i2_index_write_conflict() safe {
   int a[2] = {1, 2};
-  int^ mut i0 = &a[0]; // expected-note {{borrow of 'a' is still live}}
-  a[1] = 10; // expected-warning {{cannot assign to 'a' because it is borrowed}}
+  int^ mut i0 = &a[0]; // expected-note {{borrow of 'a[_]' is still live}}
+  a[1] = 10; // expected-warning {{cannot assign to 'a[_]' because it is borrowed}}
   *i0 = 11;
 }

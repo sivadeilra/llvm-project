@@ -52,8 +52,8 @@ void n1_nested_sibling_fields_ok() safe {
 // --------------------------------------------------------------------------
 void n2_nested_parent_child_conflict() safe {
   Outer o{{1, 2}, 3};
-  Pair^ mut inner = &o.inner; // expected-note {{exclusive borrow of 'o' created here}}
-  int^ mut x = &o.inner.x; // expected-warning {{cannot borrow 'o' as exclusive because it is already borrowed}}
+  Pair^ mut inner = &o.inner; // expected-note {{exclusive borrow of 'o.inner.x' created here}}
+  int^ mut x = &o.inner.x; // expected-warning {{cannot borrow 'o.inner.x' as exclusive because it is already borrowed}}
   (*inner).y = 4;
   *x = 5;
 }
@@ -63,10 +63,10 @@ void n2_nested_parent_child_conflict() safe {
 // --------------------------------------------------------------------------
 void n3_nested_write_conflict() safe {
   Outer o{{1, 2}, 3};
-  int^ mut rx = &o.inner.x; // expected-note {{borrow of 'o' is still live}}
+  int^ mut rx = &o.inner.x; // expected-note {{borrow of 'o.inner.x' is still live}}
   o.inner.y = 7; // OK: disjoint nested field
   o.z = 8;       // OK: disjoint top-level field
-  o.inner.x = 9; // expected-warning {{cannot assign to 'o' because it is borrowed}}
+  o.inner.x = 9; // expected-warning {{cannot assign to 'o.inner.x' because it is borrowed}}
   *rx = 10;
 }
 
@@ -86,8 +86,8 @@ void i1_inherited_and_derived_fields_ok() safe {
 // --------------------------------------------------------------------------
 void i2_whole_object_vs_inherited_field_conflict() safe {
   Derived d{{1}, 2};
-  Derived^ mut whole = &d; // expected-note {{exclusive borrow of 'd' created here}}
-  int^ mut bx = &d.bx; // expected-warning {{cannot borrow 'd' as exclusive because it is already borrowed}}
+  Derived^ mut whole = &d; // expected-note {{exclusive borrow of 'd.bx' created here}}
+  int^ mut bx = &d.bx; // expected-warning {{cannot borrow 'd.bx' as exclusive because it is already borrowed}}
   (*whole).dy = 5;
   *bx = 6;
 }
@@ -110,8 +110,8 @@ void i3_multiple_inheritance_distinct_base_fields_ok() safe {
 // --------------------------------------------------------------------------
 void i4_base_cast_alias_conflict() safe {
   Derived d{{1}, 2};
-  int^ mut b1 = &d.bx; // expected-note {{exclusive borrow of 'd' created here}}
-  int^ mut b2 = &static_cast<Base&>(d).bx; // expected-warning {{cannot borrow 'd' as exclusive because it is already borrowed}}
+  int^ mut b1 = &d.bx; // expected-note {{exclusive borrow of 'd.bx' created here}}
+  int^ mut b2 = &static_cast<Base&>(d).bx; // expected-warning {{cannot borrow 'd.bx' as exclusive because it is already borrowed}}
   *b1 = 3;
   *b2 = 4;
 }
