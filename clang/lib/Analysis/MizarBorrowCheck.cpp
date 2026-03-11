@@ -674,6 +674,12 @@ private:
           FM.getOriginMgr().markExclusive(DstOID);
         CurrentBlockFacts.push_back(
             FM.createFact<AssignOriginFact>(DstOID, SrcOID));
+
+        // Exclusive tracked refs are move-like on direct transfer.
+        if (SrcOID != DstOID &&
+            getTrackedRefBorrowKind(SrcVD->getType()) ==
+                BorrowKind::Exclusive)
+          emitMove(SrcOID, Init->getBeginLoc());
       }
     }
   }
@@ -713,6 +719,12 @@ private:
         FM.getOriginMgr().markExclusive(DstOID);
       CurrentBlockFacts.push_back(
           FM.createFact<AssignOriginFact>(DstOID, SrcOID));
+
+      // Exclusive tracked refs are move-like on direct transfer.
+      if (SrcOID != DstOID &&
+          getTrackedRefBorrowKind(SrcVD->getType()) ==
+              BorrowKind::Exclusive)
+        emitMove(SrcOID, BO->getOperatorLoc());
     }
   }
 

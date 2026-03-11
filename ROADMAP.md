@@ -15,6 +15,7 @@ This roadmap tracks borrow-checker completeness for tracked references (`T^`, `T
 - Branch-sensitive projected-path liveness is covered by tests.
 - Parent/child write-path conflicts are covered, including mixed assignment forms.
 - Virtual inheritance and ambiguous-base edge behavior are tested with conservative policy.
+- Ladder 2 initial slice is implemented: exclusive tracked-reference transfer via declaration/assignment now emits move facts and is validated by move-focused tests.
 
 ## Rust-Model Audit
 - Parity area: aliasing discipline for shared vs exclusive borrows on local, intra-procedural paths.
@@ -31,8 +32,12 @@ This roadmap tracks borrow-checker completeness for tracked references (`T^`, `T
 ### Milestone 1: Ladder 2 - Move Semantics Completeness
 Goal: Ensure move state reflects all real move points and feeds diagnostics accurately.
 
+Status:
+- In progress.
+- Completed slice: move on direct exclusive transfer (`dst = src` and `T^ mut dst = src`).
+
 Planned work:
-- Emit `MoveOriginFact` at all consuming expression/statement sites.
+- Emit `MoveOriginFact` at all remaining consuming expression/statement sites.
 - Validate merge behavior (`Moved` vs `MaybeMoved`) with branching tests.
 - Validate reinitialization transitions after move.
 
