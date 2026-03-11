@@ -414,6 +414,13 @@ static bool buildAccessPathFromExpr(const Expr *E, AccessPath &Out) {
 
   E = E->IgnoreParenImpCasts();
 
+  if (const auto *CE = dyn_cast<CastExpr>(E)) {
+    CastKind CK = CE->getCastKind();
+    if (CK == CK_NoOp || CK == CK_DerivedToBase ||
+        CK == CK_UncheckedDerivedToBase)
+      return buildAccessPathFromExpr(CE->getSubExpr(), Out);
+  }
+
   if (const auto *DRE = dyn_cast<DeclRefExpr>(E)) {
     if (const auto *VD = dyn_cast<VarDecl>(DRE->getDecl())) {
       if (!VD->hasLocalStorage())

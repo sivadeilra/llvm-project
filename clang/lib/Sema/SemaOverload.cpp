@@ -3386,6 +3386,14 @@ bool Sema::IsTrackedReferenceConversion(Expr *From, QualType FromType,
   Expr *Root = Operand;
   while (true) {
     Root = Root->IgnoreParenImpCasts();
+    if (auto *CE = dyn_cast<CastExpr>(Root)) {
+      CastKind CK = CE->getCastKind();
+      if (CK == CK_NoOp || CK == CK_DerivedToBase ||
+          CK == CK_UncheckedDerivedToBase) {
+        Root = CE->getSubExpr();
+        continue;
+      }
+    }
     if (auto *ME = dyn_cast<MemberExpr>(Root)) {
       Root = ME->getBase();
       continue;
