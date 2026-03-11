@@ -171,8 +171,9 @@ public:
     Expire,
     AssignOrigin,
     UseOrigin,
-    MoveOrigin,  // Phase B: exclusive ref passed by value (consumed)
-    WritePath,   // Phase B: write to a borrowed-from variable
+    MoveOrigin,      // Phase B: exclusive ref passed by value (consumed)
+    WritePath,       // Phase B: write to a borrowed-from variable
+    CallArgConflict, // Ladder 3 slice: conflicting simultaneous reborrows
   };
 
 private:
@@ -305,6 +306,28 @@ public:
       OS << "WritePath (" << Root->getNameAsString() << ")\n";
     else
       OS << "WritePath (<invalid>)\n";
+  }
+};
+
+class CallArgConflictFact : public Fact {
+  OriginID OID;
+  SourceLocation ExistingLoc;
+  SourceLocation NewLoc;
+
+public:
+  static bool classof(const Fact *F) {
+    return F->getKind() == CallArgConflict;
+  }
+
+  CallArgConflictFact(OriginID O, SourceLocation Existing, SourceLocation New)
+      : Fact(CallArgConflict), OID(O), ExistingLoc(Existing), NewLoc(New) {}
+
+  OriginID getOriginID() const { return OID; }
+  SourceLocation getExistingLoc() const { return ExistingLoc; }
+  SourceLocation getNewLoc() const { return NewLoc; }
+
+  void dump(llvm::raw_ostream &OS) const override {
+    OS << "CallArgConflict (Origin: " << OID << ")\n";
   }
 };
 
@@ -814,10 +837,36 @@ private:
     // from the caller's reference; the caller's reference remains valid
     // after the call returns. This is a use, not a move.
     if (const auto *CE = dyn_cast<CallExpr>(S)) {
-      for (const Expr *Arg : CE->arguments()) {
+      llvm::DenseMap<unsigned, SourceLocation> SeenExclusiveArgs;
+      const FunctionDecl *Direct = CE->getDirectCallee();
+      const FunctionProtoType *FPT =
+          Direct ? Direct->getType()->getAs<FunctionProtoType>() : nullptr;
+
+      for (unsigned I = 0; I < CE->getNumArgs(); ++I) {
+        const Expr *Arg = CE->getArg(I);
         if (const VarDecl *VD = findTrackedRefVar(Arg)) {
           OriginID OID = FM.getOriginMgr().getOrCreate(*VD);
           emitUse(OID, CE->getBeginLoc());
+
+          bool IsExclusiveReborrow = false;
+          if (FPT && I < FPT->getNumParams()) {
+            if (const auto *PT =
+                    FPT->getParamType(I)->getAs<TrackedReferenceType>())
+              IsExclusiveReborrow = PT->isExclusive();
+          } else if (const auto *AT = VD->getType()->getAs<TrackedReferenceType>()) {
+            IsExclusiveReborrow = AT->isExclusive();
+          }
+
+          if (IsExclusiveReborrow) {
+            auto It = SeenExclusiveArgs.find(OID.Value);
+            SourceLocation ArgLoc = Arg->getBeginLoc();
+            if (It == SeenExclusiveArgs.end()) {
+              SeenExclusiveArgs[OID.Value] = ArgLoc;
+            } else {
+              CurrentBlockFacts.push_back(FM.createFact<CallArgConflictFact>(
+                  OID, It->second, ArgLoc));
+            }
+          }
         }
       }
     }
@@ -1029,6 +1078,7 @@ private:
     }
     case Fact::Expire:
     case Fact::WritePath:
+    case Fact::CallArgConflict:
       // No effect on origin liveness.
       break;
     }
@@ -1208,6 +1258,7 @@ private:
     case Fact::Expire:
     case Fact::UseOrigin:
     case Fact::WritePath:
+    case Fact::CallArgConflict:
       // No effect on the loan lattice.
       return In;
     }
@@ -1460,6 +1511,10 @@ private:
       case Fact::WritePath:
         checkWritePathFact(F->getAs<WritePathFact>(), State, LiveBefore[I]);
         break;
+      case Fact::CallArgConflict:
+        checkCallArgConflictFact(F->getAs<CallArgConflictFact>(), State,
+                                 LiveBefore[I]);
+        break;
       default:
         break;
       }
@@ -1596,9 +1651,27 @@ private:
     case Fact::UseOrigin:
     case Fact::MoveOrigin:
     case Fact::WritePath:
+    case Fact::CallArgConflict:
       return In;
     }
     llvm_unreachable("Unknown fact kind");
+  }
+
+  void checkCallArgConflictFact(const CallArgConflictFact *CF,
+                                const LoanLattice &State,
+                                const llvm::BitVector &Live) {
+    (void)Live;
+    OriginID OID = CF->getOriginID();
+
+    LoanSet LoansForOrigin = State.getLoans(OID);
+    for (LoanID LID : LoansForOrigin) {
+      const Loan &L = FM.getLoanMgr().getLoan(LID);
+      const std::string PathText = renderAccessPathForDiag(L.Path);
+      Handler.handleExclusiveBorrowConflict(CF->getNewLoc(), PathText,
+                                            CF->getExistingLoc(),
+                                            /*ExistingIsExclusive=*/true);
+      return;
+    }
   }
 
   /// Check a UseOriginFact against the current move state.
@@ -1661,6 +1734,8 @@ private:
             OriginMoveInfo{MoveState::Valid, SourceLocation()};
       break;
     }
+    case Fact::CallArgConflict:
+      break;
     case Fact::AssignOrigin: {
       auto *A = F->getAs<AssignOriginFact>();
       if (FM.getOriginMgr().isExclusive(A->getDestOriginID()))

@@ -48,6 +48,10 @@ Exit criteria:
 ### Milestone 2: Ladder 3 - Reborrow and Freeze
 Goal: Match Rust ergonomics for `mut` references in calls/assignments without unsound moves.
 
+Status:
+- In progress.
+- Completed kickoff slice: conflicting simultaneous exclusive reborrows from the same origin in one call are diagnosed conservatively.
+
 Planned work:
 - Add facts and transfer rules for reborrow/freeze/unfreeze.
 - Implement conservative call-boundary lifetime for implicit reborrows.
