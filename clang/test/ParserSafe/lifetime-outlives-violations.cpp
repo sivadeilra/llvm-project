@@ -182,24 +182,21 @@ int^ elevate_to_static(int^@a x) {
 
 // V5.1: Chain @a : @b : @c; attempt to widen @c → @b.
 template<lifetime @a, lifetime @b, lifetime @c>
-requires @a : @b
-requires @b : @c
+requires @a : @b && @b : @c
 int^@b widen_via_chain(int^@c x) {
   return x; // expected-error {{cannot convert tracked reference from lifetime '@c' to '@b': '@c' does not outlive '@b'}}
 }
 
 // V5.2: Chain @a : @b : @c; attempt to widen @c → @a (two steps reversed).
 template<lifetime @a, lifetime @b, lifetime @c>
-requires @a : @b
-requires @b : @c
+requires @a : @b && @b : @c
 int^@a widen_two_steps(int^@c x) {
   return x; // expected-error {{cannot convert tracked reference from lifetime '@c' to '@a': '@c' does not outlive '@a'}}
 }
 
 // V5.3: Transitivity does NOT imply reverse via intermediate.
 template<lifetime @a, lifetime @b, lifetime @c>
-requires @a : @b
-requires @b : @c
+requires @a : @b && @b : @c
 int^@b invalid_reverse_step(int^@c x) {
   int^@a out = x; // expected-error {{cannot convert tracked reference from lifetime '@c' to '@a': '@c' does not outlive '@a'}}
   return out;     // @a → @b would be OK if we got here; but the line above fails first.
