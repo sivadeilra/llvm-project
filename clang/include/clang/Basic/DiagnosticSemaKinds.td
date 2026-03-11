@@ -13492,9 +13492,9 @@ def err_mizar_not_a_lifetime
 
 // Mizar lifetime outlives diagnostics
 def err_lifetime_does_not_outlive
-    : Error<"lifetime '@%0' does not outlive '@%1'">;
-def note_add_lifetime_constraint_suggestion
-    : Note<"add 'requires @%0 : @%1' to the template to establish this constraint">;
+    : Error<"cannot convert tracked reference from lifetime '@%0' to '@%1': '@%0' does not outlive '@%1'">;
+def err_lifetime_no_relationship
+    : Error<"cannot convert tracked reference from lifetime '@%0' to '@%1': no outlives relationship is established between '@%0' and '@%1'">;
 
 // DEBUG: Mizar debug output
 def err_mizar_debug_msg

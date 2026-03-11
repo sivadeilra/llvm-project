@@ -106,4 +106,19 @@ bool OutlivesRelation::canReach(LifetimeParmDecl *src, LifetimeParmDecl *tgt,
   return false;
 }
 
+bool OutlivesRelation::hasConstraintInvolving(LifetimeParmDecl *a,
+                                               LifetimeParmDecl *b) const {
+  // Returns true if either `a` or `b` appears as source or target in the graph.
+  for (const auto &Entry : graph) {
+    LifetimeParmDecl *src = Entry.first;
+    if (src == a || src == b)
+      return true;
+    for (LifetimeParmDecl *tgt : Entry.second) {
+      if (tgt == a || tgt == b)
+        return true;
+    }
+  }
+  return false;
+}
+
 } // namespace clang

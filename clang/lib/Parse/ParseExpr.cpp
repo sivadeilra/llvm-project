@@ -249,6 +249,14 @@ Parser::ParseConstraintLogicalAndExpression(bool IsTrailingRequiresClause) {
         ExprResult LifetimeConstraint = ParseLifetimeConstraint();
         if (LifetimeConstraint.isUsable())
           return LifetimeConstraint;
+        // If ParseLifetimeConstraint committed (consumed the @a : @b tokens)
+        // but Sema rejected it (e.g. unknown lifetime parameter), propagate
+        // the error rather than falling through to ParseCastExpression with
+        // whatever token follows — that would corrupt the parser state.
+        if (!Tok.is(tok::at_identifier))
+          return ExprError();
+        // Otherwise ParseLifetimeConstraint cleanly backtracked, so fall
+        // through to general expression / cast-expression parsing.
       }
     }
 

@@ -117,9 +117,10 @@ Parser::DeclGroupPtrTy Parser::ParseTemplateDeclarationOrSpecialization(
             Actions.ActOnRequiresClause(ParseConstraintLogicalOrExpression(
                 /*IsTrailingRequiresClause=*/false));
         if (!OptionalRequiresClauseConstraintER.isUsable()) {
-          // Skip until the semi-colon or a '}'.
-          SkipUntil(tok::r_brace, StopAtSemi | StopBeforeMatch);
-          TryConsumeToken(tok::semi);
+          // Recover by skipping just the malformed declaration (including
+          // an optional function body) rather than scanning for an unmatched
+          // '}' at file scope, which can swallow following declarations.
+          SkipMalformedDecl();
           return nullptr;
         }
       }

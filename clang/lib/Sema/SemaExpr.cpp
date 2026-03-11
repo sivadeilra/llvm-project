@@ -21471,15 +21471,19 @@ bool Sema::CheckTrackedReferenceLifetimeCompatibility(QualType FromType,
 
   OutlivesRelation OR(FTD->getTemplateParameters());
 
-  // Coercion T^@From → T^@To is safe iff @From outlives @To.
+  // Coercion T^@From -> T^@To is safe iff @From outlives @To.
   // Widening (assigning a shorter-lived reference where a longer-lived one
   // is expected) is a violation.
   if (!OR.outlives(FromLifetime, ToLifetime)) {
-    Diag(Loc, diag::err_lifetime_does_not_outlive)
-        << FromLifetime->getName() << ToLifetime->getName();
-    Diag(ToLifetime->getLocation(),
-         diag::note_add_lifetime_constraint_suggestion)
-        << FromLifetime->getName() << ToLifetime->getName();
+    // Distinguish constrained-but-wrong-direction from fully unconstrained.
+    // If neither direction is declared, emit the "no relationship" variant.
+    bool hasConstraint = OR.hasConstraintInvolving(FromLifetime, ToLifetime);
+    if (!hasConstraint)
+      Diag(Loc, diag::err_lifetime_no_relationship)
+          << FromLifetime->getName() << ToLifetime->getName();
+    else
+      Diag(Loc, diag::err_lifetime_does_not_outlive)
+          << FromLifetime->getName() << ToLifetime->getName();
     return false;
   }
 

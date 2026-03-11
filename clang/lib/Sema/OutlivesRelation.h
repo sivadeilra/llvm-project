@@ -64,6 +64,11 @@ public:
   /// Useful for early returns in validation logic.
   bool isEmpty() const { return graph.empty(); }
 
+  /// Returns true if the constraint graph has any edge where @a or @b
+  /// appears as source or target. Used to distinguish "wrong direction"
+  /// (constrained but reversed) from "no declared relationship at all".
+  bool hasConstraintInvolving(LifetimeParmDecl *a, LifetimeParmDecl *b) const;
+
 private:
   /// Internal graph representation: adjacency list.
   /// graph[src] = {tgt1, tgt2, ...} means "src outlives tgt1 and tgt2"
