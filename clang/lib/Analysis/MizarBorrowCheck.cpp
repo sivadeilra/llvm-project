@@ -42,6 +42,7 @@
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/ImmutableMap.h"
 #include "llvm/ADT/ImmutableSet.h"
+#include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -110,6 +111,16 @@ struct AccessPath {
     }
 
     // All common prefixes match. Same path or parent/child paths conflict.
+    return true;
+  }
+
+  bool operator==(const AccessPath &Other) const {
+    if (Root != Other.Root || Projections.size() != Other.Projections.size())
+      return false;
+    for (unsigned I = 0; I < Projections.size(); ++I) {
+      if (!(Projections[I] == Other.Projections[I]))
+        return false;
+    }
     return true;
   }
 };
@@ -541,6 +552,13 @@ static std::string renderAccessPathForDiag(const AccessPath &Path) {
   return std::move(OS.str());
 }
 
+static uint64_t hashAccessPath(const AccessPath &Path) {
+  llvm::hash_code HC = llvm::hash_value(Path.getRootDecl());
+  for (const auto &Elt : Path.Projections)
+    HC = llvm::hash_combine(HC, static_cast<unsigned>(Elt.K), Elt.Data);
+  return static_cast<uint64_t>(HC);
+}
+
 /// Find a DeclRefExpr to a local tracked-reference variable through casts.
 static const VarDecl *findTrackedRefVar(const Expr *E) {
   if (!E)
@@ -572,6 +590,7 @@ class MizarFactGenerator {
   /// Tracks which origins we've already emitted UseOriginFact for in the
   /// current CFGStmt, to avoid duplicates from recursive scanning.
   llvm::DenseSet<unsigned> UsesEmittedThisStmt;
+  llvm::SmallVector<std::pair<AccessPath, unsigned>, 4> WritesEmittedThisStmt;
 
 public:
   explicit MizarFactGenerator(FactManager &FM) : FM(FM) {}
@@ -597,6 +616,7 @@ private:
   /// Process a single CFG statement.
   void processStmt(const Stmt *S) {
     UsesEmittedThisStmt.clear();
+    WritesEmittedThisStmt.clear();
 
     // Handle tracked-ref declaration and assignment patterns.
     if (const auto *DS = dyn_cast<DeclStmt>(S))
@@ -716,6 +736,13 @@ private:
     const auto *RootVD = dyn_cast_or_null<VarDecl>(WritePath.getRootDecl());
     if (RootVD && RootVD->hasLocalStorage() &&
         !hasTrackedRefOrigin(RootVD->getType())) {
+      unsigned RawLoc = WriteLoc.getRawEncoding();
+      for (const auto &Entry : WritesEmittedThisStmt) {
+        if (Entry.second == RawLoc && Entry.first == WritePath)
+          return;
+      }
+
+      WritesEmittedThisStmt.push_back({WritePath, RawLoc});
       CurrentBlockFacts.push_back(
           FM.createFact<WritePathFact>(std::move(WritePath), WriteLoc));
     }
@@ -1370,6 +1397,7 @@ class ErrorDetector {
   ForwardLoanPropagation &Loans;
   const ForwardMoveTracking &MoveTracking;
   MizarBorrowCheckHandler &Handler;
+  llvm::DenseSet<uint64_t> ReportedWriteConflicts;
 
   using MoveMap = llvm::DenseMap<unsigned, OriginMoveInfo>;
 
@@ -1587,6 +1615,12 @@ private:
   /// Check a WritePathFact: writing to a local while an origin borrows it.
   void checkWritePathFact(const WritePathFact *WF, const LoanLattice &State,
                           const llvm::BitVector &Live) {
+    uint64_t Key = (static_cast<uint64_t>(WF->getWriteLoc().getRawEncoding())
+                    << 32) ^
+                   hashAccessPath(WF->getPath());
+    if (!ReportedWriteConflicts.insert(Key).second)
+      return;
+
     for (const auto &Entry : State.Origins) {
       OriginID OID = Entry.first;
       if (OID.Value >= Live.size() || !Live[OID.Value])
